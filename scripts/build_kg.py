@@ -384,8 +384,17 @@ def load_and_validate(data_dir: Path) -> Kg1Payload:
             out.append({"id": concept["id"], "props": props})
             for mapping in concept.get("mappings", []):
                 if mapping["target"] in structures_raw:
+                    # The predicate travels onto the edge: a narrower/broader
+                    # mapping must not be mistaken for identity downstream
+                    # (e.g. "glutes" skos:narrower "gluteus medius" is not
+                    # "this exercise targets gluteus medius").
                     maps_to.append(
-                        {"src": concept["id"], "dst": mapping["target"]}
+                        {
+                            "src": concept["id"],
+                            "dst": mapping["target"],
+                            "predicate": SKOS_PREDICATES[mapping["predicate"]][1],
+                            "confidence": mapping.get("confidence"),
+                        }
                     )
         return out
 
@@ -432,6 +441,9 @@ def load_and_validate(data_dir: Path) -> Kg1Payload:
                     "priority": rule["priority"],
                     "score_delta": rule.get("score_delta"),
                     "coach_overridable": rule.get("coach_overridable", False),
+                    "escalate_to_exclude_when_acute": rule.get(
+                        "escalate_to_exclude_when_acute", False
+                    ),
                     "rationale": rule["rationale"],
                     "require_anatomy_overlap": match["require_anatomy_overlap"],
                     # Nested match/applicability structures are evaluated in
@@ -580,7 +592,8 @@ def load_neo4j(payload: Kg1Payload, uri: str, user: str, password: str, reset: b
             run(
                 "UNWIND $rows AS row MATCH (c:Concept {id: row.src}) "
                 "MATCH (a:AnatomicalStructure {curie: row.dst}) "
-                "MERGE (c)-[:MAPS_TO]->(a)",
+                "MERGE (c)-[m:MAPS_TO]->(a) "
+                "SET m.predicate = row.predicate, m.confidence = row.confidence",
                 rows=payload.maps_to,
             )
             run(
