@@ -9,10 +9,21 @@ network after the first model download (see docs/tech-stack.md).
 
 from __future__ import annotations
 
-from typing import Iterable
+from functools import lru_cache
+from typing import Any, Iterable
 
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 EMBEDDING_DIM = 384
+
+
+@lru_cache(maxsize=1)
+def _model() -> Any:
+    # Imported lazily: fastembed pulls in onnxruntime, which the API only needs
+    # when the resolver's vector pass actually runs. Cached because model load
+    # costs ~a second and the resolver runs per request.
+    from fastembed import TextEmbedding
+
+    return TextEmbedding(EMBEDDING_MODEL)
 
 
 def embed_texts(texts: Iterable[str]) -> list[list[float]]:
@@ -24,9 +35,4 @@ def embed_texts(texts: Iterable[str]) -> list[list[float]]:
     Returns:
         One ``EMBEDDING_DIM``-length vector per input text, in order.
     """
-    # Imported lazily: fastembed pulls in onnxruntime, which the API only needs
-    # when the resolver's vector pass actually runs.
-    from fastembed import TextEmbedding
-
-    model = TextEmbedding(EMBEDDING_MODEL)
-    return [vector.tolist() for vector in model.embed(list(texts))]
+    return [vector.tolist() for vector in _model().embed(list(texts))]
