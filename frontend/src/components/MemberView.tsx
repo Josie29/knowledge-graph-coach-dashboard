@@ -11,6 +11,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HealthIndicator } from '@/components/HealthIndicator'
+import { WorkoutGenerator } from '@/components/WorkoutGenerator'
 import { fetchMember, JORDAN_MEMBER_ID, type Goal, type MemberResponse } from '@/lib/api'
 import type { CoachSession } from '@/lib/session'
 
@@ -150,11 +151,7 @@ export function MemberView({ session, onSignOut }: MemberViewProps) {
           aria-label="Coaching tools"
           className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-2"
         >
-          <PlaceholderPanel
-            title="Workout Generator"
-            description="Generate a safe, personalized workout from a prompt and time window."
-            hint="Coming soon — the agentic workout runtime lands in a later issue."
-          />
+          <WorkoutGenerator memberId={JORDAN_MEMBER_ID} />
           <PlaceholderPanel
             title="AI Copilot"
             description="Ask questions about this member's context, grounded in the knowledge graph."

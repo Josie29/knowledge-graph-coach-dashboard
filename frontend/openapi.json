@@ -1,0 +1,790 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "KG Coach API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/members/{member_id}": {
+      "get": {
+        "tags": [
+          "members"
+        ],
+        "summary": "Get Member",
+        "description": "Return the profile header and goals for a member.\n\nReads the Member Context graph (KG 2). When Neo4j is unreachable or the\ngraph has not been built yet, falls back to the ``member-context.json``\nseed file so the dashboard stays usable before/without ingest.\n\nArgs:\n    member_id: Member identifier, e.g. ``mbr_01HX9JORDAN``.\n    request: Current request; carries the app-lifetime Neo4j driver.\n\nReturns:\n    MemberResponse with the member's profile fields and goals.\n\nRaises:\n    HTTPException: 404 if ``member_id`` does not match a known member;\n        500 if neither the graph nor the seed file can serve it.",
+        "operationId": "get_member_api_members__member_id__get",
+        "parameters": [
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Member Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workout": {
+      "post": {
+        "tags": [
+          "workouts"
+        ],
+        "summary": "Create Workout",
+        "description": "Generate (or adjust) a workout plan for a member.\n\nSend the previous response's ``constraints_used`` back as\n``prior_constraints`` together with a follow-up message to adjust the\nplan \u2014 the constraint set merges and the safety traversal re-runs.\n\nRaises:\n    HTTPException: 503 when Neo4j or the model API is unavailable, 422\n        when the constraints leave an empty exercise pool, 500 otherwise.",
+        "operationId": "create_workout_api_workout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkoutPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Health",
+        "description": "Report API liveness and Neo4j connectivity.\n\nReturns:\n    HealthResponse with ``status`` \"ok\" when Neo4j is reachable,\n    \"degraded\" otherwise.",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Alternative": {
+        "properties": {
+          "exercise_id": {
+            "type": "string",
+            "title": "Exercise Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "shared_patterns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Shared Patterns"
+          },
+          "shared_muscle_groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Shared Muscle Groups"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exercise_id",
+          "name",
+          "shared_patterns",
+          "shared_muscle_groups"
+        ],
+        "title": "Alternative",
+        "description": "A feasible, safe substitute for an excluded exercise."
+      },
+      "ConstraintSet": {
+        "properties": {
+          "equipment_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Ids"
+          },
+          "injuries": {
+            "items": {
+              "$ref": "#/components/schemas/InjuryConstraint"
+            },
+            "type": "array",
+            "title": "Injuries"
+          },
+          "exclude_concept_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Exclude Concept Ids"
+          },
+          "downrank_concept_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Downrank Concept Ids"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "title": "ConstraintSet",
+        "description": "The merged, serializable constraint state for one conversation.\n\nReturned on every plan as ``constraints_used``; send it back as\n``prior_constraints`` with a follow-up message to adjust the plan."
+      },
+      "ExcludedExercise": {
+        "properties": {
+          "exercise_id": {
+            "type": "string",
+            "title": "Exercise Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "explicit",
+              "equipment",
+              "safety"
+            ],
+            "title": "Kind"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "missing_equipment": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Equipment"
+          },
+          "fired_rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleFiring"
+            },
+            "type": "array",
+            "title": "Fired Rules"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GraphPath"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "alternatives": {
+            "items": {
+              "$ref": "#/components/schemas/Alternative"
+            },
+            "type": "array",
+            "title": "Alternatives"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exercise_id",
+          "name",
+          "kind",
+          "reason"
+        ],
+        "title": "ExcludedExercise",
+        "description": "An exercise removed by a filter, with why and what to do instead."
+      },
+      "Goal": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "target_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "priority",
+          "target_date"
+        ],
+        "title": "Goal",
+        "description": "A member's coaching goal."
+      },
+      "GraphPath": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "cypher": {
+            "type": "string",
+            "title": "Cypher"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodes",
+          "description",
+          "cypher"
+        ],
+        "title": "GraphPath",
+        "description": "A walked path plus the query that reproduces it (PROV-O ``GraphPath``)."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "neo4j": {
+            "type": "string",
+            "title": "Neo4J"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "neo4j"
+        ],
+        "title": "HealthResponse",
+        "description": "Health check result for the API and its Neo4j dependency."
+      },
+      "InjuryConstraint": {
+        "properties": {
+          "condition_id": {
+            "type": "string",
+            "title": "Condition Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "acute",
+              "recovering",
+              "resolved"
+            ],
+            "title": "Status",
+            "default": "recovering"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "mild",
+              "moderate",
+              "severe"
+            ],
+            "title": "Severity",
+            "default": "mild"
+          }
+        },
+        "type": "object",
+        "required": [
+          "condition_id"
+        ],
+        "title": "InjuryConstraint",
+        "description": "One active injury, already resolved to a Condition concept."
+      },
+      "MemberProfile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "age": {
+            "type": "integer",
+            "title": "Age"
+          },
+          "sex": {
+            "type": "string",
+            "title": "Sex"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "member_since": {
+            "type": "string",
+            "format": "date",
+            "title": "Member Since"
+          },
+          "coach_id": {
+            "type": "string",
+            "title": "Coach Id"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "age",
+          "sex",
+          "tier",
+          "member_since",
+          "coach_id",
+          "timezone"
+        ],
+        "title": "MemberProfile",
+        "description": "Profile-header fields for the member view."
+      },
+      "MemberResponse": {
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/MemberProfile"
+          },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/Goal"
+            },
+            "type": "array",
+            "title": "Goals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profile",
+          "goals"
+        ],
+        "title": "MemberResponse",
+        "description": "Member context served to the dashboard: profile header plus goals."
+      },
+      "PlanSection": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "exercises": {
+            "items": {
+              "$ref": "#/components/schemas/PlannedExercise"
+            },
+            "type": "array",
+            "title": "Exercises"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "exercises"
+        ],
+        "title": "PlanSection"
+      },
+      "PlannedExercise": {
+        "properties": {
+          "exercise_id": {
+            "type": "string",
+            "title": "Exercise Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sets": {
+            "type": "integer",
+            "title": "Sets"
+          },
+          "reps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reps"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "rest_seconds": {
+            "type": "integer",
+            "title": "Rest Seconds"
+          },
+          "coach_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coach Note"
+          },
+          "estimated_seconds": {
+            "type": "integer",
+            "title": "Estimated Seconds"
+          },
+          "why_chosen": {
+            "type": "string",
+            "title": "Why Chosen"
+          },
+          "fired_rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleFiring"
+            },
+            "type": "array",
+            "title": "Fired Rules"
+          },
+          "pool_notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pool Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exercise_id",
+          "name",
+          "sets",
+          "rest_seconds",
+          "estimated_seconds",
+          "why_chosen"
+        ],
+        "title": "PlannedExercise",
+        "description": "One line of the plan, with the graph's justification attached."
+      },
+      "RuleFiring": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "condition_id": {
+            "type": "string",
+            "title": "Condition Id"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "exclude",
+              "downrank",
+              "promote",
+              "allow"
+            ],
+            "title": "Decision"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "score_delta": {
+            "type": "number",
+            "title": "Score Delta",
+            "default": 0.0
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "escalated_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalated From"
+          },
+          "anatomy_path": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GraphPath"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "condition_id",
+          "decision",
+          "priority",
+          "rationale"
+        ],
+        "title": "RuleFiring",
+        "description": "One safety rule that fired for one exercise."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorkoutPlan": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "warmup": {
+            "$ref": "#/components/schemas/PlanSection"
+          },
+          "main": {
+            "$ref": "#/components/schemas/PlanSection"
+          },
+          "cooldown": {
+            "$ref": "#/components/schemas/PlanSection"
+          },
+          "time_window_minutes": {
+            "type": "integer",
+            "title": "Time Window Minutes"
+          },
+          "estimated_duration_minutes": {
+            "type": "number",
+            "title": "Estimated Duration Minutes"
+          },
+          "filtered_out_for_safety": {
+            "items": {
+              "$ref": "#/components/schemas/ExcludedExercise"
+            },
+            "type": "array",
+            "title": "Filtered Out For Safety"
+          },
+          "other_exclusions": {
+            "items": {
+              "$ref": "#/components/schemas/ExcludedExercise"
+            },
+            "type": "array",
+            "title": "Other Exclusions"
+          },
+          "constraints_used": {
+            "$ref": "#/components/schemas/ConstraintSet"
+          },
+          "resolution_notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Resolution Notes"
+          },
+          "pool_size": {
+            "type": "integer",
+            "title": "Pool Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "rationale",
+          "warmup",
+          "main",
+          "cooldown",
+          "time_window_minutes",
+          "estimated_duration_minutes",
+          "filtered_out_for_safety",
+          "other_exclusions",
+          "constraints_used",
+          "resolution_notes",
+          "pool_size"
+        ],
+        "title": "WorkoutPlan",
+        "description": "The typed response of ``POST /api/workout`` (doubles as the schema)."
+      },
+      "WorkoutRequest": {
+        "properties": {
+          "member_id": {
+            "type": "string",
+            "title": "Member Id"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "time_window_minutes": {
+            "type": "integer",
+            "maximum": 180.0,
+            "minimum": 5.0,
+            "title": "Time Window Minutes"
+          },
+          "prior_constraints": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConstraintSet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "member_id",
+          "prompt",
+          "time_window_minutes"
+        ],
+        "title": "WorkoutRequest",
+        "description": "Input to ``POST /api/workout``."
+      }
+    }
+  }
+}

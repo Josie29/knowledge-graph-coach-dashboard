@@ -34,6 +34,13 @@ cd frontend && npm run build     # type-check + build
 cd frontend && npm run lint
 ```
 
+After changing backend Pydantic response models, regenerate the frontend API types:
+
+```bash
+cd backend && uv run python ../scripts/export_openapi.py ../frontend/openapi.json
+cd frontend && npm run gen:api   # openapi.json -> src/lib/api-types.ts
+```
+
 ## Layout
 
 - `backend/` — FastAPI, managed with uv. `app/main.py` mounts routers; Neo4j async driver lives
