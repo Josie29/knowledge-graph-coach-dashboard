@@ -8,6 +8,18 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "ag-ui-protocol"
+version = "0.1.19"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a7/10/4ad299267a7d04b89935aa99eef62979758fcf95aee9f8bb5d70c35b1be1/ag_ui_protocol-0.1.19.tar.gz", hash = "sha256:43c27f60d41712dcad0e9e0a203cbdf1c8e248b22417374c5c68321c448af4ea", size = 10720, upload-time = "2026-06-02T17:26:15.627Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/0a/bcad8116eb058e4b4a305e3fc37ebd7efc879deeb86b854f1c5b8b6e97dd/ag_ui_protocol-0.1.19-py3-none-any.whl", hash = "sha256:898843b1410d378824da0c6a776486288b9c5828689d0bf563118868e37f390f", size = 13490, upload-time = "2026-06-02T17:26:16.313Z" },
+]
+
+[[package]]
 name = "annotated-doc"
 version = "0.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -491,7 +503,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "fastembed" },
     { name = "neo4j" },
-    { name = "pydantic-ai-slim", extra = ["anthropic"] },
+    { name = "pydantic-ai-slim", extra = ["ag-ui", "anthropic"] },
     { name = "pydantic-settings" },
     { name = "rdflib" },
     { name = "uvicorn", extra = ["standard"] },
@@ -508,7 +520,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "fastembed", specifier = ">=0.4" },
     { name = "neo4j", specifier = ">=5.26" },
-    { name = "pydantic-ai-slim", extras = ["anthropic"], specifier = ">=1.44" },
+    { name = "pydantic-ai-slim", extras = ["ag-ui", "anthropic"], specifier = ">=1.44" },
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "rdflib", specifier = ">=7.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
@@ -908,6 +920,10 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+ag-ui = [
+    { name = "ag-ui-protocol" },
+    { name = "starlette" },
+]
 anthropic = [
     { name = "anthropic" },
 ]

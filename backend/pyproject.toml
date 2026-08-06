@@ -10,7 +10,7 @@ dependencies = [
     "pydantic-settings>=2.6",
     "rdflib>=7.1",
     "fastembed>=0.4",
-    "pydantic-ai-slim[anthropic]>=1.44",
+    "pydantic-ai-slim[ag-ui,anthropic]>=1.44",
 ]
 
 [dependency-groups]
