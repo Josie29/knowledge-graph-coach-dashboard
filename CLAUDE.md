@@ -47,5 +47,10 @@ cd frontend && npm run lint
   file issues, or open PRs on `upstream` (the assessment org's repo).
 - Work is tracked as issues #1-#14; branch `feature/<kebab-description>`, PR against `main`,
   squash merge.
-- LLM calls target Claude (`claude-opus-5`) via Pydantic AI; typed agent outputs are the API
-  contract.
+- LLM calls go through Pydantic AI; typed agent outputs are the API contract. The model is a
+  single switch point — `ANTHROPIC_MODEL` in `.env`, read via `settings.anthropic_model`.
+  Default is `claude-haiku-4-5` to keep API spend low while validating; switch to
+  `claude-opus-5` for demo and final runs. Never hardcode a model ID at a call site.
+- Haiku 4.5 does not support the `effort` parameter or adaptive thinking — code that sets
+  either must branch on the configured model, so keep those calls out of shared paths until
+  the model is pinned.
