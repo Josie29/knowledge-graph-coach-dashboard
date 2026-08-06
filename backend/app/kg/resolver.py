@@ -280,6 +280,7 @@ async def resolve_concepts(
     text: str,
     *,
     context: ResolutionContext | None = None,
+    concept_types: list[str] | None = None,
 ) -> list[ResolvedConcept]:
     """Resolve one free-text surface form to KG 1 concepts.
 
@@ -289,6 +290,10 @@ async def resolve_concepts(
         context: The slot being filled, when the caller knows it. ``"injury"``
             picks the clinical reading of ambiguous forms, ``"targeting"`` the
             muscle reading; ``None`` returns both readings flagged ambiguous.
+        concept_types: When given, only concepts of these types (e.g.
+            ``["condition"]``) can match in the exact/fulltext/vector passes —
+            used when the caller knows the slot's type, like resolving an
+            injury note to a Condition. The policy pass is not filtered.
 
     Returns:
         A non-empty list. Usually one entry; two for an unresolved ambiguity;
@@ -301,11 +306,14 @@ async def resolve_concepts(
             ResolvedConcept(query=query, resolved=False, reason="empty input")
         ]
 
+    def _type_ok(labels: list[str]) -> bool:
+        return concept_types is None or _concept_type(labels) in concept_types
+
     policy_results = await _policy_pass(driver, query, normalized, context)
     if policy_results is not None:
         return policy_results
 
-    exact = await _exact_pass(driver, normalized)
+    exact = [n for n in await _exact_pass(driver, normalized) if _type_ok(n["labels"])]
     if exact:
         return [
             ResolvedConcept(
@@ -320,7 +328,9 @@ async def resolve_concepts(
             for node in exact
         ]
 
-    fulltext = await _fulltext_pass(driver, normalized)
+    fulltext = [
+        n for n in await _fulltext_pass(driver, normalized) if _type_ok(n["labels"])
+    ]
     if fulltext and fulltext[0]["score"] >= FULLTEXT_MIN_SCORE:
         top = fulltext[0]
         return [
@@ -336,6 +346,8 @@ async def resolve_concepts(
         ]
 
     vector = await _vector_pass(driver, normalized)
+    if not isinstance(vector, str):
+        vector = [n for n in vector if _type_ok(n["labels"])]
     if isinstance(vector, str):
         best_fulltext = (
             f"; best fulltext candidate {fulltext[0]['id']} "

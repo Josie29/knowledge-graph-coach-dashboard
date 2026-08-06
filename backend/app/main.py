@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.members import router as members_router
+from app.workouts import router as workouts_router
 
 
 @asynccontextmanager
@@ -28,6 +29,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="KG Coach API", lifespan=lifespan)
 app.include_router(members_router)
+app.include_router(workouts_router)
 
 
 class HealthResponse(BaseModel):
