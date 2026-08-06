@@ -8,6 +8,8 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "neo4j>=5.26",
     "pydantic-settings>=2.6",
+    "rdflib>=7.1",
+    "fastembed>=0.4",
 ]
 
 [dependency-groups]
