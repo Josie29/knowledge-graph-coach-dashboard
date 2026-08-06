@@ -1,0 +1,51 @@
+# Knowledge-Graph Coach Dashboard
+
+Take-home build: a knowledge graph over exercise data + clinical ontologies, with a coach
+dashboard on top (AI workout generator + member-context copilot).
+
+## Run the full stack
+
+```bash
+cp .env.example .env          # first time only; ANTHROPIC_API_KEY needed for AI features
+docker compose up -d --build  # Neo4j + API + web
+```
+
+- Web: http://localhost:5173 · API: http://localhost:8000 · Neo4j Browser: http://localhost:7474
+- `docker compose down` to stop. Data persists in the `neo4j-data` volume.
+- Memory is capped per service (~1.2 GB total); Neo4j heap/pagecache are pinned deliberately.
+
+## Run pieces without Docker
+
+```bash
+cd backend && uv run uvicorn app.main:app --reload   # API on :8000
+cd frontend && npm run dev                           # web on :5173, proxies /api
+```
+
+Neo4j still needs Docker: `docker compose up -d neo4j`.
+
+## Checks
+
+```bash
+cd backend && uv run pytest      # backend tests live in backend/tests/
+cd frontend && npm run build     # type-check + build
+cd frontend && npm run lint
+```
+
+## Layout
+
+- `backend/` — FastAPI, managed with uv. `app/main.py` mounts routers; Neo4j async driver lives
+  on `app.state` via lifespan.
+- `frontend/` — React 19 + Vite + TypeScript, Tailwind v4 + shadcn/ui, `@/` aliases `src/`.
+- `data/` — source datasets (`exercises.json`, `member-context.json`) and curated ontology
+  mappings under `data/ontology/`.
+- `docs/` — stack decisions and the KG 1 schema (`kg1-schema.md`). Read `data-overview.md`
+  before touching ingest: it catalogs the dataset's quirks.
+
+## Conventions
+
+- GitHub work goes to `Josie29/knowledge-graph-coach-dashboard` (`origin`) only. Never push,
+  file issues, or open PRs on `upstream` (the assessment org's repo).
+- Work is tracked as issues #1-#14; branch `feature/<kebab-description>`, PR against `main`,
+  squash merge.
+- LLM calls target Claude (`claude-opus-5`) via Pydantic AI; typed agent outputs are the API
+  contract.
