@@ -50,5 +50,11 @@ are documented separately and summarized here:
   in-console first (flagged in [KG doc](./knowledge-graph-options.md)).
 - **Frontend component tests** — Vitest + React Testing Library if time allows; the two required
   tests are backend-only, so this is a nice-to-have.
-- **Langfuse cloud vs. self-hosted** — cloud free tier assumed; self-host in Compose only if the
-  reviewer shouldn't need any external account to see traces.
+- **Langfuse cloud vs. self-hosted** — **resolved: cloud free tier** (issue #13). Langfuse v3
+  self-hosting needs ClickHouse + Postgres + Redis + MinIO — four extra containers that blow this
+  repo's ~1.2 GB memory budget — while the cloud free tier is zero-infra. Tracing is opt-in: with
+  no `LANGFUSE_*` keys in `.env` the app runs unchanged (no-op spans), so a reviewer without an
+  account loses nothing. To view traces: create a free project at cloud.langfuse.com, put its
+  keys in `.env`, restart, generate one workout and ask the copilot one question — each shows up
+  as an agent-run trace with the LLM calls, tool calls, and `neo4j.query` graph traversals nested
+  inside (details in `backend/app/observability.py`).

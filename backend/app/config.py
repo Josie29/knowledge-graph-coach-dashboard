@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     anthropic_model: ClaudeModel = ClaudeModel.HAIKU_4_5
     # Override with DATA_DIR in Docker, where data/ is mounted elsewhere.
     data_dir: Path = _REPO_ROOT / "data"
+    # Langfuse tracing (issue #13) — optional; tracing is a no-op when the
+    # keys are unset. US-region accounts set https://us.cloud.langfuse.com.
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_host: str = "https://cloud.langfuse.com"
 
 
 settings = Settings()
