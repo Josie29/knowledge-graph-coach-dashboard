@@ -1,0 +1,380 @@
+{
+  "vocabulary": "contraindication_rule",
+  "namespaces": "./namespaces.json",
+  "description": "Rules mapping conditions to unsafe (and to explicitly safe) movement. This file is the reason the safety layer is smarter than the blunt joints_loaded filter criticised in docs/data-overview.md section 3: rules match on the biomechanical attributes in movement-patterns.json, not merely on whether an exercise touches the injured joint.",
+  "the_problem_being_solved": {
+    "blunt_filter": "Filtering the catalog on joints_loaded contains 'knee' excludes 10 of the sample member's 21 equipment-feasible exercises. Among them are Cow Pose and World's Greatest Stretch - both explicitly appropriate for a recovering knee. Meanwhile Jumping Jack, which the member's own injury note rules out, carries joints_loaded [ankle, hip, shoulder] and passes straight through.",
+    "consequence": "A joints_loaded-only filter is wrong in both directions at once. It bans harmless mobility work and admits the exact high-impact movement the clinician warned against.",
+    "the_fix": "Route the decision through movement mechanics. An exercise is excluded because it loads the knee in deep flexion, or because it is high-impact - never merely because a 'knee' string appears in an array."
+  },
+  "evaluation_semantics": {
+    "order": "All applicable rules are evaluated for every candidate exercise. There is no short-circuit; the full set of fired rules is retained so the provenance trace can show every reason, not just the first.",
+    "resolution": "The fired rule with the highest priority wins. On a tie, the more restrictive decision wins (exclude > downrank > promote > allow).",
+    "priority_bands": {
+      "200": "allow - an explicit clinical exemption. Overrides an exclusion. Used sparingly and only where the movement is actively indicated for the condition.",
+      "100": "exclude - remove from the candidate set entirely.",
+      "50": "downrank - keep, but apply score_delta so it only appears if better options run out.",
+      "20": "promote - keep and boost. Never rescues an excluded exercise on its own."
+    },
+    "anatomy_matching": "When require_anatomy_overlap is true, the rule fires only if the condition's anatomy_anchor reaches one of the exercise's STRESSES targets through the PART_OF / IS_A closure defined in anatomy-partonomy.json. When false, the rule fires on mechanics alone.",
+    "why_anatomy_overlap_is_optional": "Because joints_loaded is not trustworthy. Two catalog exercises have an empty joints_loaded array and would pass any anatomy-gated rule by default, and Jumping Jack omits the knee despite being a bilateral landing task. Impact rules therefore fire on mechanics alone once the condition is lower-limb, on the reasoning that landing forces travel the whole kinetic chain regardless of how the catalog tagged the row.",
+    "mechanics_are_pattern_level": "The attributes in movement-patterns.json describe the pattern, not the individual exercise. A conjunctive clause (mechanics_all_of) must be satisfied by a single pattern of the exercise, never assembled across two - otherwise a mobility drill paired with a loaded press would read as loaded mobility.",
+    "external_load_refinement": "external_load_typical is overridden per exercise by the catalog's supports_weight flag: effective_external_load = pattern.external_load_typical AND exercise.supports_weight. Without this, a bodyweight jump squat inherits 'loaded' from the squat pattern. supports_weight is one of the few catalog booleans that carries real signal (28 true / 22 false), and this is the place it earns its keep.",
+    "status_escalation": "A rule whose applies_when.status includes 'acute' and whose decision is 'downrank' is escalated to 'exclude' when the member's injury status is acute. Encoded per-rule rather than globally, so no rule is escalated without someone having decided it should be.",
+    "coach_override": "Every rule carries coach_overridable. A coach can override an exclusion in the UI, but the override is recorded as a kgc:Exclusion entity with prov:wasAttributedTo the coach - the decision is never silently discarded."
+  },
+  "rules": [
+    {
+      "id": "rule_pfps_avoid_impact",
+      "condition": "cond_pfps",
+      "decision": "exclude",
+      "priority": 100,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "mechanics_any_of": {"impact": ["high"]}
+      },
+      "rationale": "Repetitive landing impact is the classic aggravator of patellofemoral pain. Ground-reaction force at landing drives patellofemoral joint stress well beyond what the same person tolerates in controlled loading.",
+      "member_evidence": "The sample member's injury note says 'avoid deep knee flexion under load and plyometrics' verbatim, and preferences.notes adds 'Dislikes high-impact jumping'. Two independent signals, one clinical and one preference, pointing the same way.",
+      "anatomy_gate_waived_because": "Jumping Jack is plyometric but its joints_loaded array omits the knee. An anatomy-gated version of this rule would let it through - the single clearest demonstration in this dataset of why mechanics must be able to fire on their own.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_pfps_avoid_loaded_deep_knee_flexion",
+      "condition": "cond_pfps",
+      "decision": "exclude",
+      "priority": 100,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["moderate", "severe", "mild"]},
+      "exercise_match": {
+        "require_anatomy_overlap": true,
+        "mechanics_all_of": {
+          "knee_flexion_demand": ["deep"],
+          "external_load_typical": [true],
+          "kinetic_chain": ["closed", "mixed"]
+        }
+      },
+      "rationale": "Patellofemoral contact pressure rises steeply with knee flexion angle under load, and closed-chain loading concentrates it. The three conditions are tested together on purpose: deep flexion alone is fine (quadruped work), and load alone is fine (a hip hinge).",
+      "member_evidence": "'avoid deep knee flexion under load' - the injury note names this mechanism directly.",
+      "why_three_predicates": "Testing knee_flexion_demand alone would exclude the quadruped position, where the shins bear the weight and the patellofemoral joint is unloaded. Testing load alone would exclude a hamstring walkout. Only the conjunction describes the mechanism.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_pfps_downrank_moderate_knee_load",
+      "condition": "cond_pfps",
+      "decision": "downrank",
+      "priority": 50,
+      "score_delta": -0.35,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": true,
+        "mechanics_all_of": {
+          "knee_flexion_demand": ["moderate"],
+          "external_load_typical": [true]
+        }
+      },
+      "escalate_to_exclude_when_acute": true,
+      "rationale": "Moderate-range loaded knee work is the progression target, not a hazard. Kept available but ranked below the safer options so it appears once the plan has room, matching a graded return to loading.",
+      "member_evidence": "The member completed box-supported goblet squats pain-free on 2026-06-03 and reported 'Knee felt okay with the box squats'. Excluding this band outright would contradict her own most recent evidence and her stated goal of returning to pain-free squatting.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_pfps_allow_unloaded_therapeutic",
+      "condition": "cond_pfps",
+      "decision": "allow",
+      "priority": 200,
+      "applies_when": {"status": ["acute", "recovering", "resolved"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "mechanics_all_of": {
+          "is_therapeutic": [true],
+          "external_load_typical": [false]
+        },
+        "mechanics_none_of": {"impact": ["moderate", "high"]}
+      },
+      "rationale": "Unloaded mobility and soft-tissue work over an irritable joint is indicated, not contraindicated. This rule is the direct answer to the false positives a joints_loaded filter produces.",
+      "rescues": ["Cow Pose", "World's Greatest Stretch", "Kneeling Stability Ball Lat Stretch", "Ground Upper Trap Stretch", "Standing Neck Circles"],
+      "note": "The mechanics_none_of clause is a deliberate guard. Without it, any future pattern flagged therapeutic but high-impact - a plyometric drill labelled as rehab, say - would be rescued by an allow rule that outranks the exclusions. Allow rules are the dangerous kind and are written defensively.",
+      "coach_overridable": false
+    },
+    {
+      "id": "rule_pfps_promote_hip_abduction",
+      "condition": "cond_pfps",
+      "decision": "promote",
+      "priority": 20,
+      "score_delta": 0.4,
+      "applies_when": {"status": ["recovering", "resolved"], "severity": ["mild", "moderate"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "pattern_id_any_of": ["mp_lower_abduction"],
+        "targets_any_of": ["snomed:78333006"]
+      },
+      "rationale": "Hip abductor strengthening, gluteus medius in particular, is standard first-line conservative management for patellofemoral pain. The graph should not merely permit it - it should prefer it.",
+      "note": "The only rule here that makes the plan actively better rather than merely safer. Included because a safety layer that can only subtract produces cautious, uninspiring plans, and a coach notices.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_patellar_tendinopathy_avoid_impact",
+      "condition": "cond_patellar_tendinopathy",
+      "decision": "exclude",
+      "priority": 100,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "mechanics_any_of": {"impact": ["high"]}
+      },
+      "rationale": "Energy-storage loading is the provocative mechanism in patellar tendinopathy - hence the common name, jumper's knee.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_patellar_tendinopathy_allow_isometric",
+      "condition": "cond_patellar_tendinopathy",
+      "decision": "allow",
+      "priority": 200,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "pattern_id_any_of": ["mp_isometric"],
+        "mechanics_none_of": {"impact": ["moderate", "high"]}
+      },
+      "rationale": "Isometric loading is a recognised analgesic entry point for tendinopathy. Worth encoding because it is counter-intuitive: the naive rule bans all loading of a painful tendon, and the better answer is to keep a specific kind of it.",
+      "coach_overridable": false
+    },
+    {
+      "id": "rule_knee_oa_downrank_deep_flexion",
+      "condition": "cond_knee_oa",
+      "decision": "downrank",
+      "priority": 50,
+      "score_delta": -0.3,
+      "applies_when": {"status": ["chronic", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": true,
+        "mechanics_all_of": {"knee_flexion_demand": ["deep"], "external_load_typical": [true]}
+      },
+      "rationale": "Down-rank rather than exclude. Progressive loading is the evidence-backed management for knee osteoarthritis; removing loaded knee work entirely would be actively harmful advice. Contrast with the patellofemoral rule, which excludes the same mechanics - the difference in decision is the clinical point.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_acl_avoid_impact_and_pivot",
+      "condition": "cond_acl_injury",
+      "decision": "exclude",
+      "priority": 100,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "mechanics_any_of": {"impact": ["high"]}
+      },
+      "rationale": "Landing and deceleration load the anterior cruciate ligament directly. Single-leg landing is the highest-risk case, which the unilateral_lower_limb attribute makes visible to a future refinement of this rule.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_meniscus_avoid_deep_loaded_flexion",
+      "condition": "cond_meniscus_tear",
+      "decision": "exclude",
+      "priority": 100,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": true,
+        "mechanics_all_of": {"knee_flexion_demand": ["deep"], "kinetic_chain": ["closed", "mixed"]}
+      },
+      "rationale": "Deep closed-chain flexion compresses the posterior horn of the meniscus. Note this rule omits the external_load predicate that the patellofemoral rule requires: deep flexion compresses the meniscus whether or not weight is added.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_lumbar_disc_avoid_loaded_flexion",
+      "condition": "cond_lumbar_disc_herniation",
+      "decision": "exclude",
+      "priority": 100,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "mechanics_any_of": {
+          "spinal_flexion_demand": ["high"],
+          "axial_spinal_load": ["heavy"]
+        }
+      },
+      "rationale": "Loaded lumbar flexion and heavy axial compression both raise intradiscal pressure. Either predicate alone is sufficient, so this rule uses any_of where the knee rules use all_of.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_low_back_pain_downrank_axial_load",
+      "condition": "cond_low_back_pain",
+      "decision": "downrank",
+      "priority": 50,
+      "score_delta": -0.3,
+      "applies_when": {"status": ["acute", "recovering", "chronic"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "mechanics_any_of": {"axial_spinal_load": ["moderate", "heavy"]}
+      },
+      "escalate_to_exclude_when_acute": true,
+      "rationale": "Non-specific low back pain responds better to continued graded activity than to rest, so the default is a down-rank. Escalated to exclusion only in an acute flare.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_low_back_pain_downrank_loaded_rotation",
+      "condition": "cond_low_back_pain",
+      "decision": "downrank",
+      "priority": 50,
+      "score_delta": -0.25,
+      "applies_when": {"status": ["acute", "recovering", "chronic"], "severity": ["moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "mechanics_all_of": {"spinal_rotation_demand": ["high"], "external_load_typical": [true]}
+      },
+      "rationale": "Loaded end-range rotation is a common provocateur. Unloaded rotation is not, which is why the load predicate is required.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_shoulder_impingement_avoid_overhead",
+      "condition": "cond_shoulder_impingement",
+      "decision": "exclude",
+      "priority": 100,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": true,
+        "mechanics_all_of": {"overhead_shoulder_demand": ["full"]}
+      },
+      "rationale": "Full overhead elevation closes the subacromial space. Partial elevation - the painful-arc midrange - is handled by the down-rank rule rather than excluded, since avoiding it entirely leaves almost no upper-body work.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_rotator_cuff_downrank_partial_overhead",
+      "condition": "cond_rotator_cuff_syndrome",
+      "decision": "downrank",
+      "priority": 50,
+      "score_delta": -0.25,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": true,
+        "mechanics_any_of": {"overhead_shoulder_demand": ["partial", "full"]}
+      },
+      "escalate_to_exclude_when_acute": true,
+      "rationale": "Graded loading is the management, so partial elevation stays available outside a flare.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_lateral_epicondylitis_downrank_gripping",
+      "condition": "cond_lateral_epicondylitis",
+      "decision": "downrank",
+      "priority": 50,
+      "score_delta": -0.3,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": true,
+        "mechanics_all_of": {"kinetic_chain": ["open"], "external_load_typical": [true]}
+      },
+      "rationale": "Sustained grip with elbow load provokes the common extensor origin. An honest limitation: the catalog has no grip-demand field, so open-chain loaded elbow work is the closest available proxy. Recorded here rather than presented as a precise rule.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_ankle_sprain_avoid_impact",
+      "condition": "cond_ankle_sprain",
+      "decision": "exclude",
+      "priority": 100,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "mechanics_any_of": {"impact": ["high"]}
+      },
+      "rationale": "Landing on a healing lateral ligament complex risks re-injury.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_ankle_sprain_promote_balance",
+      "condition": "cond_ankle_sprain",
+      "decision": "promote",
+      "priority": 20,
+      "score_delta": 0.35,
+      "applies_when": {"status": ["recovering", "resolved"], "severity": ["mild", "moderate"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "pattern_id_any_of": ["mp_balance"],
+        "mechanics_none_of": {"impact": ["high"]}
+      },
+      "rationale": "Proprioceptive retraining measurably reduces ankle re-sprain rates. Another case where the right answer is to prefer a movement, not to remove one.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_achilles_avoid_impact",
+      "condition": "cond_achilles_tendinopathy",
+      "decision": "exclude",
+      "priority": 100,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "mechanics_any_of": {"impact": ["high"]}
+      },
+      "rationale": "Energy-storage loading provokes Achilles tendinopathy in the same way it provokes patellar tendinopathy.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_carpal_tunnel_downrank_loaded_wrist_extension",
+      "condition": "cond_carpal_tunnel",
+      "decision": "downrank",
+      "priority": 50,
+      "score_delta": -0.4,
+      "applies_when": {"status": ["acute", "recovering", "chronic"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": true,
+        "mechanics_all_of": {"kinetic_chain": ["closed"]}
+      },
+      "rationale": "Weight-bearing through an extended wrist - planks, push-ups, quadruped work - raises carpal tunnel pressure. Down-ranked rather than excluded because the position is usually modifiable with fists or handles, which is a coaching cue rather than an exercise swap.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_cervical_radiculopathy_avoid_overhead_axial",
+      "condition": "cond_cervical_radiculopathy",
+      "decision": "exclude",
+      "priority": 100,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": false,
+        "mechanics_all_of": {"overhead_shoulder_demand": ["full"], "axial_spinal_load": ["light", "moderate", "heavy"]}
+      },
+      "rationale": "Overhead loading with axial compression narrows the intervertebral foramen and can reproduce radicular symptoms.",
+      "coach_overridable": true
+    },
+    {
+      "id": "rule_neck_pain_downrank_end_range_cervical",
+      "condition": "cond_neck_pain",
+      "decision": "downrank",
+      "priority": 50,
+      "score_delta": -0.2,
+      "applies_when": {"status": ["acute", "recovering"], "severity": ["moderate", "severe"]},
+      "exercise_match": {
+        "require_anatomy_overlap": true,
+        "mechanics_all_of": {"end_range_rom": [true]}
+      },
+      "rationale": "End-range cervical movement is often symptom-provoking in an irritable neck, though gentle range work is part of management - hence a down-rank.",
+      "coach_overridable": true
+    }
+  ],
+  "rule_count_by_condition": {
+    "cond_pfps": 5,
+    "cond_patellar_tendinopathy": 2,
+    "cond_knee_oa": 1,
+    "cond_acl_injury": 1,
+    "cond_meniscus_tear": 1,
+    "cond_lumbar_disc_herniation": 1,
+    "cond_low_back_pain": 2,
+    "cond_shoulder_impingement": 1,
+    "cond_rotator_cuff_syndrome": 1,
+    "cond_lateral_epicondylitis": 1,
+    "cond_ankle_sprain": 2,
+    "cond_achilles_tendinopathy": 1,
+    "cond_carpal_tunnel": 1,
+    "cond_cervical_radiculopathy": 1,
+    "cond_neck_pain": 1
+  },
+  "design_notes": [
+    "Rules never name an exercise. They match on condition anatomy plus movement mechanics, so adding an exercise to the catalog automatically inherits the right safety behaviour with no rule edit. The one exception is the rescues list on rule_pfps_allow_unloaded_therapeutic, which is documentation of an observed effect rather than a matching clause.",
+    "The same mechanics produce different decisions for different conditions - deep loaded knee flexion is excluded for patellofemoral pain and merely down-ranked for knee osteoarthritis. If a rule engine could not express that, it would be a filter, not a clinical model.",
+    "Every rule states a mechanism, not just a prohibition. That text is what the provenance trace surfaces to the coach, and a coach who cannot see the mechanism has no basis to exercise the override.",
+    "Two conditions in conditions.json have no rules at all (cond_rotator_cuff_tear, cond_lumbar_disc_prolapse is folded into herniation). They resolve and display, but contribute no automatic filtering - listed here rather than left for a reviewer to notice."
+  ],
+  "not_modelled_here": {
+    "preferences_and_dislikes": "The member's dislikes ('Deadlift', 'Burpees') are preferences, not contraindications, and are handled by the preference layer rather than by safety rules. They are mentioned because both strings match zero catalog exercise names; they resolve through the alt_labels on mp_lower_pull_hip_lift and mp_cardio_plyometric instead. Keeping preference exclusion out of this file matters - conflating 'she does not like it' with 'it is unsafe' would corrupt the audit trail.",
+    "equipment_feasibility": "A separate filter over REQUIRES edges. Not a safety concern.",
+    "dose_and_volume": "Sets, reps and rest are chosen by plan assembly. A rule here can exclude a movement but never prescribe a load."
+  }
+}

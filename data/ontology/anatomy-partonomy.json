@@ -1,0 +1,1763 @@
+{
+  "vocabulary": "anatomy_partonomy",
+  "namespaces": "./namespaces.json",
+  "description": "The anatomy hierarchy that makes 'her left knee is bothering her' cover every knee sub-structure, and 'bad lower back' resolve to the lumbar segment. Every structure and every edge below was read off the NCI EVS API against snomedct_us 2025_09_01.",
+  "edge_semantics": {
+    "PART_OF": "Mereological. The child is a component of the parent. Directed child -> parent.",
+    "IS_A": "Taxonomic specialisation. The child is a kind of the parent, most often a laterality refinement. Directed child -> parent."
+  },
+  "why_two_edges": "SNOMED CT's stated body-structure hierarchy is a single IS-A tree that carries both readings: 'Structure of left knee joint' is a *kind of* knee joint, while 'Structure of patellofemoral joint' is a *part of* one. Collapsing them into one edge would be convenient and wrong - a rule written against a part would silently inherit down a specialisation, and a laterality claim would leak sideways to the other limb. Each edge below was therefore hand-classified. The `basis` field records whether SNOMED asserted the link (snomed_isa) or whether this project asserted it (curated), so a reviewer can see exactly where our judgement was added.",
+  "safety_closure": {
+    "query_shape": "MATCH (injury:Concept)-[:PART_OF|IS_A*0..5]->(anc) MATCH (joint:Concept {is_catalog_joint: true}) WHERE joint = anc OR (joint)-[:PART_OF]->(anc) MATCH (ex:Exercise)-[:STRESSES]->(joint)",
+    "explanation": "The catalog only ever tags exercises at the 9 coarse joints. An injury may be recorded far below that granularity (patellofemoral joint) or laterally (left knee joint). The closure walks upward from the injury concept until it reaches a catalog-mapped joint - optionally taking one step back down into a sibling under the same region - and the walked path is what gets serialised into the provenance trace.",
+    "max_depth": 5,
+    "max_depth_rationale": "The deepest catalog-relevant chain is 5 hops: nucleus pulposus -> lumbar intervertebral disc -> lumbar intervertebral symphysis -> lumbar spine joint structure -> lumbar spine joint region -> lumbar spine structure. The anterior cruciate ligament needs 4. Bounding at 5 admits both while stopping the traversal short of climbing out to 'Structure of vertebral column', which would drag in every spinal exercise.",
+    "region_descent": "The single optional downward PART_OF step is deliberate and bounded at one hop. Tendon and muscle structures hang off a body region rather than off the joint - the rotator cuff under the shoulder region, the Achilles under its own region, the common extensor origin under the elbow region. Without the down-step those conditions never reach a catalog joint. Allowing more than one down-step would let a knee condition descend from 'Structure of vertebral column' into every spinal exercise, which is exactly the over-reach the depth bound exists to prevent."
+  },
+  "structures": {
+    "snomed:72696002": {
+      "label": "Knee region structure",
+      "kind": "region"
+    },
+    "snomed:49076000": {
+      "label": "Knee joint structure",
+      "kind": "joint",
+      "is_catalog_joint": true
+    },
+    "snomed:82169009": {
+      "label": "Structure of left knee region",
+      "kind": "region",
+      "laterality": "left"
+    },
+    "snomed:6757004": {
+      "label": "Structure of right knee region",
+      "kind": "region",
+      "laterality": "right"
+    },
+    "snomed:719442003": {
+      "label": "Structure of left knee joint",
+      "kind": "joint",
+      "laterality": "left"
+    },
+    "snomed:719443008": {
+      "label": "Structure of right knee joint",
+      "kind": "joint",
+      "laterality": "right"
+    },
+    "snomed:244548003": {
+      "label": "Component of knee joint",
+      "kind": "joint_component"
+    },
+    "snomed:129160003": {
+      "label": "Structure of patellofemoral joint",
+      "kind": "joint_component"
+    },
+    "snomed:719488009": {
+      "label": "Structure of left patellofemoral joint",
+      "kind": "joint_component",
+      "laterality": "left"
+    },
+    "snomed:719487004": {
+      "label": "Structure of right patellofemoral joint",
+      "kind": "joint_component",
+      "laterality": "right"
+    },
+    "snomed:129159008": {
+      "label": "Structure of femorotibial joint",
+      "kind": "joint_component"
+    },
+    "snomed:244549006": {
+      "label": "Structure of medial femorotibial joint",
+      "kind": "joint_component"
+    },
+    "snomed:244550006": {
+      "label": "Structure of lateral femorotibial joint",
+      "kind": "joint_component"
+    },
+    "snomed:43653007": {
+      "label": "Knee meniscus structure",
+      "kind": "cartilage"
+    },
+    "snomed:10013000": {
+      "label": "Lateral meniscus structure",
+      "kind": "cartilage"
+    },
+    "snomed:49390008": {
+      "label": "Medial meniscus structure",
+      "kind": "cartilage"
+    },
+    "snomed:723388001": {
+      "label": "Structure of left meniscus of knee",
+      "kind": "cartilage",
+      "laterality": "left"
+    },
+    "snomed:723389009": {
+      "label": "Structure of right meniscus of knee",
+      "kind": "cartilage",
+      "laterality": "right"
+    },
+    "snomed:68010000": {
+      "label": "Structure of ligament of knee joint",
+      "kind": "ligament"
+    },
+    "snomed:79562002": {
+      "label": "Structure of intraarticular ligament of knee joint",
+      "kind": "ligament"
+    },
+    "snomed:78928002": {
+      "label": "Structure of cruciate ligaments of knee joint",
+      "kind": "ligament"
+    },
+    "snomed:895007": {
+      "label": "Structure of anterior cruciate ligament of knee joint",
+      "kind": "ligament"
+    },
+    "snomed:16219000": {
+      "label": "Structure of posterior cruciate ligament of knee joint",
+      "kind": "ligament"
+    },
+    "snomed:18033002": {
+      "label": "Structure of patellar ligament",
+      "kind": "tendon",
+      "note": "Synonym: patellar tendon. The attachment point for patellar tendinopathy rules."
+    },
+    "snomed:764781002": {
+      "label": "Structure of left patellar tendon",
+      "kind": "tendon",
+      "laterality": "left"
+    },
+    "snomed:764782009": {
+      "label": "Structure of right patellar tendon",
+      "kind": "tendon",
+      "laterality": "right"
+    },
+    "snomed:787449008": {
+      "label": "Structure of medial patellofemoral ligament",
+      "kind": "ligament"
+    },
+    "snomed:305032001": {
+      "label": "Structure of articular cartilage of knee joint",
+      "kind": "cartilage"
+    },
+    "snomed:305069003": {
+      "label": "Structure of articular cartilage of patella",
+      "kind": "cartilage"
+    },
+    "snomed:305057006": {
+      "label": "Structure of articular cartilage of femoral condyle",
+      "kind": "cartilage"
+    },
+    "snomed:305077004": {
+      "label": "Structure of articular cartilage of tibial condyle",
+      "kind": "cartilage"
+    },
+    "snomed:723266004": {
+      "label": "Structure of articular cartilage of left knee joint",
+      "kind": "cartilage",
+      "laterality": "left"
+    },
+    "snomed:723267008": {
+      "label": "Structure of articular cartilage of right knee joint",
+      "kind": "cartilage",
+      "laterality": "right"
+    },
+    "snomed:85655003": {
+      "label": "Structure of capsule of knee joint",
+      "kind": "capsule"
+    },
+    "snomed:244551005": {
+      "label": "Structure of compartment of knee",
+      "kind": "joint_component"
+    },
+    "snomed:88775003": {
+      "label": "Structure of infrapatellar fat pad",
+      "kind": "soft_tissue"
+    },
+    "snomed:305019006": {
+      "label": "Periarticular bone structure of knee joint",
+      "kind": "bone"
+    },
+    "snomed:244642005": {
+      "label": "Ligament of meniscus of knee joint",
+      "kind": "ligament"
+    },
+    "snomed:29836001": {
+      "label": "Hip region structure",
+      "kind": "region"
+    },
+    "snomed:24136001": {
+      "label": "Hip joint structure",
+      "kind": "joint",
+      "is_catalog_joint": true
+    },
+    "snomed:362907004": {
+      "label": "Structure of left hip joint",
+      "kind": "joint",
+      "laterality": "left"
+    },
+    "snomed:362908009": {
+      "label": "Structure of right hip joint",
+      "kind": "joint",
+      "laterality": "right"
+    },
+    "snomed:787804001": {
+      "label": "Structure of acetabular cartilage complex",
+      "kind": "cartilage"
+    },
+    "snomed:41987009": {
+      "label": "Structure of ligament of hip joint",
+      "kind": "ligament"
+    },
+    "snomed:72525003": {
+      "label": "Structure of capsule of hip joint",
+      "kind": "capsule"
+    },
+    "snomed:305002009": {
+      "label": "Hip joint cavity",
+      "kind": "joint_component"
+    },
+    "snomed:344001": {
+      "label": "Ankle region structure",
+      "kind": "region"
+    },
+    "snomed:70258002": {
+      "label": "Ankle joint structure",
+      "kind": "joint",
+      "is_catalog_joint": true
+    },
+    "snomed:720532008": {
+      "label": "Structure of left ankle joint",
+      "kind": "joint",
+      "laterality": "left"
+    },
+    "snomed:720533003": {
+      "label": "Structure of right ankle joint",
+      "kind": "joint",
+      "laterality": "right"
+    },
+    "snomed:22593003": {
+      "label": "Talotibial joint structure",
+      "kind": "joint_component"
+    },
+    "snomed:67211007": {
+      "label": "Structure of ligament of ankle joint",
+      "kind": "ligament"
+    },
+    "snomed:363520000": {
+      "label": "Medial ligament of ankle joint structure",
+      "kind": "ligament"
+    },
+    "snomed:2712006": {
+      "label": "Structure of capsule of ankle joint",
+      "kind": "capsule"
+    },
+    "snomed:305033006": {
+      "label": "Articular cartilage of ankle joint",
+      "kind": "cartilage"
+    },
+    "snomed:699608006": {
+      "label": "Achilles region structure",
+      "kind": "region"
+    },
+    "snomed:61352006": {
+      "label": "Structure of Achilles tendon",
+      "kind": "tendon"
+    },
+    "snomed:721064000": {
+      "label": "Structure of left Achilles tendon",
+      "kind": "tendon",
+      "laterality": "left"
+    },
+    "snomed:721063006": {
+      "label": "Structure of right Achilles tendon",
+      "kind": "tendon",
+      "laterality": "right"
+    },
+    "snomed:1193502008": {
+      "label": "Structure of triceps surae tendon",
+      "kind": "tendon"
+    },
+    "snomed:16982005": {
+      "label": "Shoulder region structure",
+      "kind": "region"
+    },
+    "snomed:31398001": {
+      "label": "Joint structure of shoulder region",
+      "kind": "joint",
+      "is_catalog_joint": true
+    },
+    "snomed:722460003": {
+      "label": "Structure of left shoulder joint",
+      "kind": "joint",
+      "laterality": "left"
+    },
+    "snomed:722462006": {
+      "label": "Structure of right shoulder joint",
+      "kind": "joint",
+      "laterality": "right"
+    },
+    "snomed:85537004": {
+      "label": "Glenohumeral joint structure",
+      "kind": "joint_component"
+    },
+    "snomed:85856004": {
+      "label": "Acromioclavicular joint structure",
+      "kind": "joint_component"
+    },
+    "snomed:7844006": {
+      "label": "Sternoclavicular joint structure",
+      "kind": "joint_component"
+    },
+    "snomed:264190008": {
+      "label": "Scapulothoracic joint",
+      "kind": "joint_component"
+    },
+    "snomed:43120001": {
+      "label": "Structure of capsule of shoulder joint",
+      "kind": "capsule"
+    },
+    "snomed:50024002": {
+      "label": "Structure of ligament of shoulder joint",
+      "kind": "ligament"
+    },
+    "snomed:86721001": {
+      "label": "Structure of glenoid labrum",
+      "kind": "cartilage"
+    },
+    "snomed:7885001": {
+      "label": "Structure of rotator cuff including muscles and tendons",
+      "kind": "muscle_group"
+    },
+    "snomed:372229005": {
+      "label": "Part of rotator cuff",
+      "kind": "muscle_group"
+    },
+    "snomed:426821001": {
+      "label": "Muscle of rotator cuff",
+      "kind": "muscle_group"
+    },
+    "snomed:6423006": {
+      "label": "Structure of supraspinatus muscle",
+      "kind": "muscle"
+    },
+    "snomed:72573008": {
+      "label": "Structure of infraspinatus muscle",
+      "kind": "muscle"
+    },
+    "snomed:51159009": {
+      "label": "Structure of teres minor muscle",
+      "kind": "muscle"
+    },
+    "snomed:90588001": {
+      "label": "Structure of subscapularis muscle",
+      "kind": "muscle"
+    },
+    "snomed:127949000": {
+      "label": "Elbow region structure",
+      "kind": "region"
+    },
+    "snomed:16953009": {
+      "label": "Elbow joint structure",
+      "kind": "joint",
+      "is_catalog_joint": true
+    },
+    "snomed:720591004": {
+      "label": "Structure of left elbow joint",
+      "kind": "joint",
+      "laterality": "left"
+    },
+    "snomed:720590003": {
+      "label": "Structure of right elbow joint",
+      "kind": "joint",
+      "laterality": "right"
+    },
+    "snomed:44034005": {
+      "label": "Structure of humeroulnar joint",
+      "kind": "joint_component"
+    },
+    "snomed:65232003": {
+      "label": "Structure of humeroradial joint",
+      "kind": "joint_component"
+    },
+    "snomed:20903007": {
+      "label": "Proximal radioulnar joint structure",
+      "kind": "joint_component"
+    },
+    "snomed:87218006": {
+      "label": "Structure of ligament of elbow joint",
+      "kind": "ligament"
+    },
+    "snomed:305029004": {
+      "label": "Articular cartilage of elbow joint",
+      "kind": "cartilage"
+    },
+    "snomed:73451009": {
+      "label": "Structure of lateral epicondyle of humerus",
+      "kind": "bone"
+    },
+    "snomed:245234007": {
+      "label": "Structure of proximal common extensor tendon insertion within elbow region",
+      "kind": "tendon"
+    },
+    "snomed:699026005": {
+      "label": "Joint structure of wrist region",
+      "kind": "region"
+    },
+    "snomed:74670003": {
+      "label": "Wrist joint structure",
+      "kind": "joint",
+      "is_catalog_joint": true
+    },
+    "snomed:720556007": {
+      "label": "Structure of left radiocarpal joint",
+      "kind": "joint",
+      "laterality": "left"
+    },
+    "snomed:720555006": {
+      "label": "Structure of right radiocarpal joint",
+      "kind": "joint",
+      "laterality": "right"
+    },
+    "snomed:182178002": {
+      "label": "Entire radiocarpal joint",
+      "kind": "joint_component"
+    },
+    "snomed:29005008": {
+      "label": "Structure of capsule of radiocarpal joint",
+      "kind": "capsule"
+    },
+    "snomed:123857004": {
+      "label": "Structure of ligament of wrist joint",
+      "kind": "ligament"
+    },
+    "snomed:305017008": {
+      "label": "Periarticular bone structure of wrist joint",
+      "kind": "bone"
+    },
+    "snomed:421060004": {
+      "label": "Structure of vertebral column",
+      "kind": "region"
+    },
+    "snomed:122496007": {
+      "label": "Lumbar spine structure",
+      "kind": "region",
+      "is_catalog_joint": true
+    },
+    "snomed:786966006": {
+      "label": "Structure of lumbar spine joint region",
+      "kind": "region"
+    },
+    "snomed:8454000": {
+      "label": "Lumbar spine joint structure",
+      "kind": "joint"
+    },
+    "snomed:361686005": {
+      "label": "Entire lumbar vertebral column",
+      "kind": "bone"
+    },
+    "snomed:73903008": {
+      "label": "Bone structure of lumbar vertebra",
+      "kind": "bone"
+    },
+    "snomed:428001008": {
+      "label": "Structure of facet joint of lumbar spine",
+      "kind": "joint_component"
+    },
+    "snomed:771131000": {
+      "label": "Structure of left facet joint of lumbar spine",
+      "kind": "joint_component",
+      "laterality": "left"
+    },
+    "snomed:771132007": {
+      "label": "Structure of right facet joint of lumbar spine",
+      "kind": "joint_component",
+      "laterality": "right"
+    },
+    "snomed:1186779005": {
+      "label": "Structure of lumbar intervertebral symphysis",
+      "kind": "joint_component"
+    },
+    "snomed:23526008": {
+      "label": "Structure of lumbar intervertebral disc",
+      "kind": "cartilage"
+    },
+    "snomed:44405009": {
+      "label": "Structure of annulus fibrosus of intervertebral disc of lumbar vertebra",
+      "kind": "cartilage"
+    },
+    "snomed:22468002": {
+      "label": "Structure of nucleus pulposus of intervertebral disc of lumbar vertebra",
+      "kind": "cartilage"
+    },
+    "snomed:182377002": {
+      "label": "Ligament of spine in lumbar region",
+      "kind": "ligament"
+    },
+    "snomed:41586005": {
+      "label": "Structure of intervertebral foramen of lumbar vertebra",
+      "kind": "bone"
+    },
+    "snomed:122495006": {
+      "label": "Thoracic spine structure",
+      "kind": "region",
+      "is_catalog_joint": true
+    },
+    "snomed:786965005": {
+      "label": "Structure of thoracic spine joint region",
+      "kind": "region"
+    },
+    "snomed:34449008": {
+      "label": "Thoracic spine joint structure",
+      "kind": "joint"
+    },
+    "snomed:35769007": {
+      "label": "Bone structure of thoracic vertebra",
+      "kind": "bone"
+    },
+    "snomed:428132006": {
+      "label": "Structure of facet joint of thoracic spine",
+      "kind": "joint_component"
+    },
+    "snomed:1186750003": {
+      "label": "Structure of thoracic intervertebral symphysis",
+      "kind": "joint_component"
+    },
+    "snomed:5261000": {
+      "label": "Structure of thoracic intervertebral disc",
+      "kind": "cartilage"
+    },
+    "snomed:182370000": {
+      "label": "Ligament of spine in thoracic region",
+      "kind": "ligament"
+    },
+    "snomed:122494005": {
+      "label": "Structure of cervical vertebral column",
+      "kind": "region",
+      "is_catalog_joint": true
+    },
+    "snomed:786964009": {
+      "label": "Structure of cervical spine joint region",
+      "kind": "region"
+    },
+    "snomed:129167000": {
+      "label": "Cervical spine joint structure",
+      "kind": "joint"
+    },
+    "snomed:84667006": {
+      "label": "Bone structure of cervical vertebra",
+      "kind": "bone"
+    },
+    "snomed:427091002": {
+      "label": "Structure of facet joint of cervical spine",
+      "kind": "joint_component"
+    },
+    "snomed:1179596002": {
+      "label": "Structure of cervical intervertebral symphysis",
+      "kind": "joint_component"
+    },
+    "snomed:68818006": {
+      "label": "Structure of cervical intervertebral disc",
+      "kind": "cartilage"
+    },
+    "snomed:182359007": {
+      "label": "Ligament of spine in cervical region",
+      "kind": "ligament"
+    },
+    "snomed:79112004": {
+      "label": "Skeletal muscle structure of back",
+      "kind": "muscle_group"
+    },
+    "snomed:41777002": {
+      "label": "Structure of muscle of upper back",
+      "kind": "muscle_group"
+    },
+    "snomed:48144002": {
+      "label": "Structure of muscle of lower back",
+      "kind": "muscle_group"
+    },
+    "snomed:244849004": {
+      "label": "Structure of deep muscle of back",
+      "kind": "muscle_group"
+    },
+    "snomed:6001004": {
+      "label": "Structure of quadratus lumborum muscle",
+      "kind": "muscle"
+    },
+    "snomed:424072006": {
+      "label": "Structure of thoracic paraspinous muscle group",
+      "kind": "muscle_group"
+    },
+    "snomed:31764008": {
+      "label": "Structure of trapezius muscle",
+      "kind": "muscle"
+    },
+    "snomed:3865001": {
+      "label": "Structure of interscapular region of back",
+      "kind": "region"
+    },
+    "snomed:15665001": {
+      "label": "Structure of latissimus dorsi muscle",
+      "kind": "muscle"
+    },
+    "snomed:102291007": {
+      "label": "Muscle of buttock",
+      "kind": "muscle_group"
+    },
+    "snomed:206007": {
+      "label": "Structure of gluteus maximus muscle",
+      "kind": "muscle"
+    },
+    "snomed:78333006": {
+      "label": "Structure of gluteus medius muscle",
+      "kind": "muscle"
+    },
+    "snomed:75297007": {
+      "label": "Structure of gluteus minimus muscle",
+      "kind": "muscle"
+    },
+    "snomed:28190000": {
+      "label": "Structure of tensor fasciae latae muscle",
+      "kind": "muscle"
+    },
+    "snomed:715019009": {
+      "label": "Structure of muscle acting on hip joint",
+      "kind": "muscle_group"
+    },
+    "snomed:303800000": {
+      "label": "Flexor of hip joint",
+      "kind": "muscle_group"
+    },
+    "snomed:303801001": {
+      "label": "Extensor of hip joint",
+      "kind": "muscle_group"
+    },
+    "snomed:303802008": {
+      "label": "Abductor of hip joint",
+      "kind": "muscle_group"
+    },
+    "snomed:303803003": {
+      "label": "Structure of adductor muscle of hip joint",
+      "kind": "muscle_group"
+    },
+    "snomed:303804009": {
+      "label": "Internal rotator of hip joint",
+      "kind": "muscle_group"
+    },
+    "snomed:303805005": {
+      "label": "External rotator of hip joint",
+      "kind": "muscle_group"
+    },
+    "snomed:85629004": {
+      "label": "Structure of adductor longus muscle",
+      "kind": "muscle"
+    },
+    "snomed:70770004": {
+      "label": "Structure of adductor brevis muscle",
+      "kind": "muscle"
+    },
+    "snomed:23087007": {
+      "label": "Structure of adductor magnus muscle",
+      "kind": "muscle"
+    },
+    "snomed:2577006": {
+      "label": "Structure of gracilis muscle",
+      "kind": "muscle"
+    },
+    "snomed:72226001": {
+      "label": "Structure of rectus femoris muscle",
+      "kind": "muscle"
+    },
+    "snomed:71875009": {
+      "label": "Structure of pectineus muscle",
+      "kind": "muscle"
+    },
+    "snomed:12595009": {
+      "label": "Structure of sartorius muscle",
+      "kind": "muscle"
+    },
+    "snomed:128511007": {
+      "label": "Posterior muscle of thigh structure",
+      "kind": "muscle_group"
+    },
+    "snomed:89241006": {
+      "label": "Structure of biceps femoris muscle",
+      "kind": "muscle"
+    },
+    "snomed:84010001": {
+      "label": "Structure of semimembranosus muscle",
+      "kind": "muscle"
+    },
+    "snomed:50340007": {
+      "label": "Structure of semitendinosus muscle",
+      "kind": "muscle"
+    },
+    "snomed:21989003": {
+      "label": "Structure of quadriceps femoris muscle",
+      "kind": "muscle_group"
+    },
+    "snomed:818995003": {
+      "label": "Abdominal skeletal muscle",
+      "kind": "muscle_group"
+    },
+    "snomed:1179025002": {
+      "label": "Structure of external oblique abdominal muscle",
+      "kind": "muscle"
+    },
+    "snomed:1179024003": {
+      "label": "Structure of obliquus internus abdominis muscle",
+      "kind": "muscle"
+    },
+    "snomed:1142228004": {
+      "label": "Structure of muscle of wall of abdominal proper segment of trunk",
+      "kind": "muscle_group"
+    },
+    "snomed:53451005": {
+      "label": "Triceps surae muscle structure",
+      "kind": "muscle_group"
+    },
+    "snomed:35616000": {
+      "label": "Gastrocnemius muscle structure",
+      "kind": "muscle"
+    },
+    "snomed:16225001": {
+      "label": "Biceps brachii muscle structure",
+      "kind": "muscle"
+    },
+    "snomed:40284004": {
+      "label": "Triceps brachii muscle structure",
+      "kind": "muscle"
+    },
+    "snomed:35259002": {
+      "label": "Structure of deltoid muscle",
+      "kind": "muscle"
+    },
+    "snomed:60005003": {
+      "label": "Pectoralis major muscle structure",
+      "kind": "muscle"
+    },
+    "snomed:18686000": {
+      "label": "Pectoralis minor muscle structure",
+      "kind": "muscle"
+    },
+    "snomed:423313009": {
+      "label": "Structure of muscle of forearm",
+      "kind": "muscle_group"
+    }
+  },
+  "edges": [
+    {
+      "child": "snomed:49076000",
+      "parent": "snomed:72696002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:719442003",
+      "parent": "snomed:49076000",
+      "edge": "IS_A",
+      "basis": "snomed_isa",
+      "note": "Laterality refinement, not componentry. Keeping it IS_A stops a left-knee rule from being reachable as a 'part' of the right knee."
+    },
+    {
+      "child": "snomed:719443008",
+      "parent": "snomed:49076000",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:719442003",
+      "parent": "snomed:82169009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:719443008",
+      "parent": "snomed:6757004",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:82169009",
+      "parent": "snomed:72696002",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:6757004",
+      "parent": "snomed:72696002",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:244548003",
+      "parent": "snomed:49076000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:129160003",
+      "parent": "snomed:244548003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:719488009",
+      "parent": "snomed:129160003",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:719487004",
+      "parent": "snomed:129160003",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:129159008",
+      "parent": "snomed:244548003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:244549006",
+      "parent": "snomed:129159008",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:244550006",
+      "parent": "snomed:129159008",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:43653007",
+      "parent": "snomed:244548003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:10013000",
+      "parent": "snomed:43653007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:49390008",
+      "parent": "snomed:43653007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:723388001",
+      "parent": "snomed:43653007",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:723389009",
+      "parent": "snomed:43653007",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:68010000",
+      "parent": "snomed:49076000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:79562002",
+      "parent": "snomed:68010000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:78928002",
+      "parent": "snomed:79562002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:895007",
+      "parent": "snomed:78928002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:16219000",
+      "parent": "snomed:78928002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:18033002",
+      "parent": "snomed:68010000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:764781002",
+      "parent": "snomed:18033002",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:764782009",
+      "parent": "snomed:18033002",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:787449008",
+      "parent": "snomed:18033002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:305032001",
+      "parent": "snomed:244548003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:305069003",
+      "parent": "snomed:305032001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:305057006",
+      "parent": "snomed:305032001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:305077004",
+      "parent": "snomed:305032001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:723266004",
+      "parent": "snomed:305032001",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:723267008",
+      "parent": "snomed:305032001",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:85655003",
+      "parent": "snomed:244548003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:244551005",
+      "parent": "snomed:244548003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:88775003",
+      "parent": "snomed:244548003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:244642005",
+      "parent": "snomed:244548003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:305019006",
+      "parent": "snomed:49076000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:24136001",
+      "parent": "snomed:29836001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:362907004",
+      "parent": "snomed:24136001",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:362908009",
+      "parent": "snomed:24136001",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:787804001",
+      "parent": "snomed:24136001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:41987009",
+      "parent": "snomed:24136001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:72525003",
+      "parent": "snomed:24136001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:305002009",
+      "parent": "snomed:24136001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:70258002",
+      "parent": "snomed:344001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:720532008",
+      "parent": "snomed:70258002",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:720533003",
+      "parent": "snomed:70258002",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:22593003",
+      "parent": "snomed:70258002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:67211007",
+      "parent": "snomed:70258002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:363520000",
+      "parent": "snomed:67211007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:2712006",
+      "parent": "snomed:70258002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:305033006",
+      "parent": "snomed:70258002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:61352006",
+      "parent": "snomed:699608006",
+      "edge": "PART_OF",
+      "basis": "snomed_isa",
+      "note": "Achilles tendon hangs off the Achilles region, NOT the ankle joint. Left that way deliberately - see joints.json jt_ankle."
+    },
+    {
+      "child": "snomed:721064000",
+      "parent": "snomed:61352006",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:721063006",
+      "parent": "snomed:61352006",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:61352006",
+      "parent": "snomed:1193502008",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:699608006",
+      "parent": "snomed:344001",
+      "edge": "PART_OF",
+      "basis": "curated",
+      "note": "Asserted by this project so that an Achilles condition still reaches the ankle-tagged catalog exercises, at one extra hop. SNOMED does not state this link."
+    },
+    {
+      "child": "snomed:31398001",
+      "parent": "snomed:16982005",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:722460003",
+      "parent": "snomed:31398001",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:722462006",
+      "parent": "snomed:31398001",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:85537004",
+      "parent": "snomed:31398001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:85856004",
+      "parent": "snomed:31398001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:7844006",
+      "parent": "snomed:31398001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:264190008",
+      "parent": "snomed:31398001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:43120001",
+      "parent": "snomed:31398001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:50024002",
+      "parent": "snomed:31398001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:86721001",
+      "parent": "snomed:85537004",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:7885001",
+      "parent": "snomed:16982005",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:372229005",
+      "parent": "snomed:7885001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:426821001",
+      "parent": "snomed:372229005",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:6423006",
+      "parent": "snomed:426821001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:72573008",
+      "parent": "snomed:426821001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:51159009",
+      "parent": "snomed:426821001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:90588001",
+      "parent": "snomed:426821001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:16953009",
+      "parent": "snomed:127949000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:720591004",
+      "parent": "snomed:16953009",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:720590003",
+      "parent": "snomed:16953009",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:44034005",
+      "parent": "snomed:16953009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:65232003",
+      "parent": "snomed:16953009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:20903007",
+      "parent": "snomed:16953009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:87218006",
+      "parent": "snomed:16953009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:305029004",
+      "parent": "snomed:16953009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:73451009",
+      "parent": "snomed:127949000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:245234007",
+      "parent": "snomed:127949000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:74670003",
+      "parent": "snomed:699026005",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:720556007",
+      "parent": "snomed:74670003",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:720555006",
+      "parent": "snomed:74670003",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:182178002",
+      "parent": "snomed:74670003",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:29005008",
+      "parent": "snomed:74670003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:123857004",
+      "parent": "snomed:74670003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:305017008",
+      "parent": "snomed:74670003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:122496007",
+      "parent": "snomed:421060004",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:786966006",
+      "parent": "snomed:122496007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:8454000",
+      "parent": "snomed:786966006",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:361686005",
+      "parent": "snomed:122496007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:73903008",
+      "parent": "snomed:122496007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:182377002",
+      "parent": "snomed:122496007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:41586005",
+      "parent": "snomed:122496007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:428001008",
+      "parent": "snomed:8454000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:771131000",
+      "parent": "snomed:428001008",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:771132007",
+      "parent": "snomed:428001008",
+      "edge": "IS_A",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:1186779005",
+      "parent": "snomed:8454000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:23526008",
+      "parent": "snomed:1186779005",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:44405009",
+      "parent": "snomed:23526008",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:22468002",
+      "parent": "snomed:23526008",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:122495006",
+      "parent": "snomed:421060004",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:786965005",
+      "parent": "snomed:122495006",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:34449008",
+      "parent": "snomed:786965005",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:428132006",
+      "parent": "snomed:34449008",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:1186750003",
+      "parent": "snomed:34449008",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:5261000",
+      "parent": "snomed:1186750003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:35769007",
+      "parent": "snomed:122495006",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:182370000",
+      "parent": "snomed:122495006",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:122494005",
+      "parent": "snomed:421060004",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:786964009",
+      "parent": "snomed:122494005",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:129167000",
+      "parent": "snomed:786964009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:427091002",
+      "parent": "snomed:129167000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:1179596002",
+      "parent": "snomed:129167000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:68818006",
+      "parent": "snomed:1179596002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:84667006",
+      "parent": "snomed:122494005",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:182359007",
+      "parent": "snomed:122494005",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:41777002",
+      "parent": "snomed:79112004",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:48144002",
+      "parent": "snomed:79112004",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:244849004",
+      "parent": "snomed:79112004",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:424072006",
+      "parent": "snomed:79112004",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:6001004",
+      "parent": "snomed:48144002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:31764008",
+      "parent": "snomed:41777002",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:206007",
+      "parent": "snomed:102291007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:78333006",
+      "parent": "snomed:102291007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:75297007",
+      "parent": "snomed:102291007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:28190000",
+      "parent": "snomed:102291007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:303805005",
+      "parent": "snomed:102291007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:303800000",
+      "parent": "snomed:715019009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:303801001",
+      "parent": "snomed:715019009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:303802008",
+      "parent": "snomed:715019009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:303803003",
+      "parent": "snomed:715019009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:303804009",
+      "parent": "snomed:715019009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:303805005",
+      "parent": "snomed:715019009",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:85629004",
+      "parent": "snomed:303803003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:70770004",
+      "parent": "snomed:303803003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:23087007",
+      "parent": "snomed:303803003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:2577006",
+      "parent": "snomed:303803003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:72226001",
+      "parent": "snomed:303800000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:71875009",
+      "parent": "snomed:303800000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:12595009",
+      "parent": "snomed:303800000",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:128511007",
+      "parent": "snomed:303801001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:206007",
+      "parent": "snomed:303801001",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:89241006",
+      "parent": "snomed:128511007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:84010001",
+      "parent": "snomed:128511007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:50340007",
+      "parent": "snomed:128511007",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:72226001",
+      "parent": "snomed:21989003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa",
+      "note": "Rectus femoris is both a hip flexor and a quadriceps head. The partonomy is a DAG, not a tree - this node genuinely has two parents, and both paths are clinically meaningful."
+    },
+    {
+      "child": "snomed:1179025002",
+      "parent": "snomed:818995003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:1179024003",
+      "parent": "snomed:818995003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:1142228004",
+      "parent": "snomed:818995003",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:35616000",
+      "parent": "snomed:53451005",
+      "edge": "PART_OF",
+      "basis": "snomed_isa"
+    },
+    {
+      "child": "snomed:18686000",
+      "parent": "snomed:60005003",
+      "edge": "IS_A",
+      "basis": "curated",
+      "note": "Pectoralis minor is not part of pectoralis major; both are chest-wall muscles. Recorded as a sibling link rather than a false partonomy."
+    }
+  ],
+  "ambiguous_surface_forms": [
+    {
+      "surface_form": "lower back",
+      "problem": "Appears both as a catalog muscle_groups value (2 exercises) and as the phrase a coach uses for a lumbar complaint ('bad lower back'). The two readings resolve to different SNOMED concepts and must not be merged.",
+      "resolution_policy": [
+        {
+          "context": "injury, pain, complaint, contraindication",
+          "resolves_to": "snomed:122496007",
+          "label": "Lumbar spine structure",
+          "reason": "Complaints are about the segment, not the muscle. This is what satisfies the brief's 'bad lower back resolves to a lumbar region node'."
+        },
+        {
+          "context": "targeting, muscle emphasis, catalog field muscle_groups",
+          "resolves_to": "snomed:48144002",
+          "label": "Structure of muscle of lower back",
+          "reason": "Catalog usage is about which tissue is worked."
+        }
+      ],
+      "implementation_note": "The resolver receives the slot it is filling (injury_site vs muscle_target) and picks the branch. When the slot is unknown it returns both with a flag rather than guessing - the degradation path the brief asks for."
+    },
+    {
+      "surface_form": "upper back",
+      "problem": "A catalog muscle_groups value (8 exercises) and a colloquial name for the thoracic segment.",
+      "resolution_policy": [
+        {
+          "context": "injury, pain, complaint",
+          "resolves_to": "snomed:122495006",
+          "label": "Thoracic spine structure"
+        },
+        {
+          "context": "targeting, catalog field muscle_groups",
+          "resolves_to": "snomed:41777002",
+          "label": "Structure of muscle of upper back"
+        }
+      ]
+    },
+    {
+      "surface_form": "shoulder",
+      "problem": "Coaches say 'shoulder' for the whole complex; clinicians usually mean the glenohumeral joint.",
+      "resolution_policy": [
+        {
+          "context": "any",
+          "resolves_to": "snomed:31398001",
+          "label": "Joint structure of shoulder region",
+          "reason": "The broader concept is the safe default: it subsumes the glenohumeral, acromioclavicular and sternoclavicular joints, so no shoulder complaint escapes the filter. Narrowing would trade recall for precision in the direction that hurts."
+        }
+      ]
+    },
+    {
+      "surface_form": "knee",
+      "problem": "Coaches say 'knee' for anything from patellar tendon pain to a meniscus tear.",
+      "resolution_policy": [
+        {
+          "context": "any",
+          "resolves_to": "snomed:49076000",
+          "label": "Knee joint structure",
+          "reason": "Resolve coarse, then let the partonomy do the work downward and the specific condition rules do the work upward. The catalog tags at exactly this granularity."
+        }
+      ]
+    }
+  ]
+}

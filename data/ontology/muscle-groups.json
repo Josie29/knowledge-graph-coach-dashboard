@@ -1,0 +1,255 @@
+{
+  "vocabulary": "muscle_group",
+  "source_field": "muscle_groups",
+  "source_file": "data/exercises.json",
+  "distinct_terms": 19,
+  "namespaces": "./namespaces.json",
+  "description": "The 19 distinct muscle_groups strings mapped onto SNOMED CT muscle structures (primary) and, where OPE carries a usable class, onto the NCI Thesaurus classes OPE imports (secondary). SNOMED is primary because it has real functional-group concepts ('Flexor of hip joint', 'Muscle of buttock') that a lay taxonomy actually needs; NCIT is recorded alongside because it is the vocabulary OPE itself speaks.",
+  "coverage": {
+    "snomed": "19 of 19 mapped. 15 skos:exactMatch, 2 skos:broader, 1 skos:closeMatch, 1 skos:narrower pair.",
+    "ncit_via_ope": "15 of 19 mapped. 4 declined - see declined_mappings."
+  },
+  "concepts": [
+    {
+      "id": "mg_biceps",
+      "catalog_term": "biceps",
+      "pref_label": "Biceps brachii",
+      "alt_labels": ["biceps", "bicep", "bis", "arm flexors"],
+      "exercise_count": 8,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:16225001", "target_label": "Biceps brachii muscle structure", "confidence": "high"},
+        {"predicate": "skos:exactMatch", "target": "ncit:Biceps", "target_label": "Biceps", "confidence": "high", "via": "OPE"}
+      ]
+    },
+    {
+      "id": "mg_calves",
+      "catalog_term": "calves",
+      "pref_label": "Triceps surae (calf group)",
+      "alt_labels": ["calves", "calf", "calf muscles", "gastroc", "soleus"],
+      "exercise_count": 7,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:53451005", "target_label": "Triceps surae muscle structure", "confidence": "high", "note": "The anatomically correct group concept for the calf: gastrocnemius plus soleus. Preferred over snomed:53840002 'Structure of calf of leg', which is the body region, not the muscle."},
+        {"predicate": "skos:exactMatch", "target": "ncit:Triceps_Surae", "target_label": "Triceps Surae", "confidence": "high", "via": "OPE"},
+        {"predicate": "skos:narrower", "target": "snomed:35616000", "target_label": "Gastrocnemius muscle structure", "confidence": "high"}
+      ]
+    },
+    {
+      "id": "mg_chest",
+      "catalog_term": "chest",
+      "pref_label": "Pectoral muscles",
+      "alt_labels": ["chest", "pecs", "pectorals", "pectoral"],
+      "exercise_count": 5,
+      "mappings": [
+        {"predicate": "skos:closeMatch", "target": "snomed:60005003", "target_label": "Pectoralis major muscle structure", "confidence": "medium", "note": "Deliberately NOT exactMatch. SNOMED CT has no pectoral group concept; pectoralis major is the dominant but not the only chest muscle. Asserting identity here would quietly drop pectoralis minor."},
+        {"predicate": "skos:broader", "target": "snomed:372074006", "target_label": "Skeletal muscle structure of chest wall", "confidence": "high"},
+        {"predicate": "skos:exactMatch", "target": "ncit:Pectoralis_Muscle", "target_label": "Pectoralis Muscle", "confidence": "high", "via": "OPE", "note": "NCIT beats SNOMED CT here - it has the group concept SNOMED lacks. One of the few places the secondary vocabulary carries the better term."}
+      ]
+    },
+    {
+      "id": "mg_core",
+      "catalog_term": "core",
+      "pref_label": "Core / abdominal musculature",
+      "alt_labels": ["core", "abs", "abdominals", "trunk", "midsection"],
+      "exercise_count": 12,
+      "mappings": [
+        {"predicate": "skos:broader", "target": "snomed:818995003", "target_label": "Abdominal skeletal muscle", "confidence": "medium", "note": "'Core' is a training-culture term with no clinical referent. It is conventionally taken to include the deep abdominal wall, the diaphragm, the pelvic floor and the spinal stabilisers - a set no single SNOMED concept covers. Mapped broader to the abdominal musculature and flagged, rather than forced."},
+        {"predicate": "skos:exactMatch", "target": "ncit:Abdominal_Muscle", "target_label": "Abdominal Muscle", "confidence": "medium", "via": "OPE"},
+        {"predicate": "skos:related", "target": "snomed:68230005", "target_label": "Skeletal muscle structure of trunk", "confidence": "medium"}
+      ]
+    },
+    {
+      "id": "mg_deltoids",
+      "catalog_term": "deltoids",
+      "pref_label": "Deltoid",
+      "alt_labels": ["deltoids", "deltoid", "delts", "shoulders"],
+      "exercise_count": 15,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:35259002", "target_label": "Structure of deltoid muscle", "confidence": "high"},
+        {"predicate": "skos:exactMatch", "target": "ncit:Deltoid", "target_label": "Deltoid", "confidence": "high", "via": "OPE"}
+      ]
+    },
+    {
+      "id": "mg_forearms",
+      "catalog_term": "forearms",
+      "pref_label": "Forearm musculature",
+      "alt_labels": ["forearms", "forearm", "grip", "wrist flexors", "wrist extensors"],
+      "exercise_count": 2,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:423313009", "target_label": "Structure of muscle of forearm", "confidence": "high"}
+      ],
+      "declined": [
+        {"vocabulary": "ncit_via_ope", "reason": "OPE imports eight individual forearm muscles (Flexor_Carpi_Radialis, Extensor_Carpi_Ulnaris, Pronator_Teres and so on) but no group class above them. Mapping to any one member would misrepresent the catalog term."}
+      ]
+    },
+    {
+      "id": "mg_glutes",
+      "catalog_term": "glutes",
+      "pref_label": "Gluteal muscles",
+      "alt_labels": ["glutes", "glute", "gluteals", "buttocks", "backside"],
+      "exercise_count": 13,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:102291007", "target_label": "Muscle of buttock", "confidence": "high", "note": "A genuine group concept whose children are gluteus maximus, medius, minimus and tensor fasciae latae. SNOMED has no concept literally named 'gluteal muscle structure'; this is it."},
+        {"predicate": "skos:narrower", "target": "snomed:206007", "target_label": "Structure of gluteus maximus muscle", "confidence": "high"},
+        {"predicate": "skos:narrower", "target": "snomed:78333006", "target_label": "Structure of gluteus medius muscle", "confidence": "high", "note": "Clinically load-bearing for this project: gluteus medius strengthening is first-line conservative management for patellofemoral pain, which is why the contraindication layer promotes hip-abduction work for the sample member rather than merely permitting it."}
+      ],
+      "declined": [
+        {"vocabulary": "ncit_via_ope", "reason": "OPE imports Gluteus_Maximus and Gluteus_Medius as individuals but has no gluteal group class and no Gluteus_Minimus."}
+      ]
+    },
+    {
+      "id": "mg_hamstrings",
+      "catalog_term": "hamstrings",
+      "pref_label": "Hamstring group",
+      "alt_labels": ["hamstrings", "hamstring", "hams", "posterior thigh"],
+      "exercise_count": 4,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:128511007", "target_label": "Posterior muscle of thigh structure", "confidence": "high", "note": "Children are biceps femoris, semimembranosus and semitendinosus - exactly the hamstring group."},
+        {"predicate": "skos:exactMatch", "target": "ncit:Hamstring", "target_label": "Hamstring", "confidence": "high", "via": "OPE"},
+        {"predicate": "skos:related", "target": "snomed:699984008", "target_label": "Hamstring muscle and/or tendon structure", "confidence": "high"}
+      ]
+    },
+    {
+      "id": "mg_hip_adductors",
+      "catalog_term": "hip adductors",
+      "pref_label": "Hip adductor group",
+      "alt_labels": ["hip adductors", "adductors", "groin", "inner thigh"],
+      "exercise_count": 2,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:303803003", "target_label": "Structure of adductor muscle of hip joint", "confidence": "high", "note": "SNOMED models muscles-acting-on-a-joint as real functional groups. This is the clean win that made SNOMED the primary anatomy vocabulary here - a lay term like 'hip adductors' lands on a first-class concept instead of a hand-rolled bag of muscles."},
+        {"predicate": "skos:exactMatch", "target": "ncit:Adductor_Group_of_the_Leg", "target_label": "Adductor Group of the Leg", "confidence": "high", "via": "OPE"}
+      ]
+    },
+    {
+      "id": "mg_hip_flexors",
+      "catalog_term": "hip flexors",
+      "pref_label": "Hip flexor group",
+      "alt_labels": ["hip flexors", "hip flexor", "psoas", "iliopsoas"],
+      "exercise_count": 5,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:303800000", "target_label": "Flexor of hip joint", "confidence": "high"},
+        {"predicate": "skos:closeMatch", "target": "ncit:Iliopsoas_Muscle", "target_label": "Iliopsoas Muscle", "confidence": "medium", "via": "OPE", "note": "Narrower than the catalog term - iliopsoas is the principal hip flexor but not the whole group."}
+      ]
+    },
+    {
+      "id": "mg_lats",
+      "catalog_term": "lats",
+      "pref_label": "Latissimus dorsi",
+      "alt_labels": ["lats", "lat", "latissimus", "latissimus dorsi"],
+      "exercise_count": 7,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:15665001", "target_label": "Structure of latissimus dorsi muscle", "confidence": "high"},
+        {"predicate": "skos:exactMatch", "target": "ncit:Musculus_Latissimus_Dorsi", "target_label": "Musculus Latissimus Dorsi", "confidence": "high", "via": "OPE"}
+      ]
+    },
+    {
+      "id": "mg_lower_back",
+      "catalog_term": "lower back",
+      "pref_label": "Lower back musculature",
+      "alt_labels": ["lower back", "low back", "lumbar muscles", "erectors"],
+      "exercise_count": 2,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:48144002", "target_label": "Structure of muscle of lower back", "confidence": "high"},
+        {"predicate": "skos:closeMatch", "target": "ncit:Erector_Spinae", "target_label": "Erector Spinae", "confidence": "medium", "via": "OPE", "note": "Narrower - the erectors are the dominant but not the only lower-back muscle."}
+      ],
+      "disambiguation": "This term is also how a coach names a lumbar complaint. When it appears in an injury context it must resolve to snomed:122496007 (Lumbar spine structure) instead. Policy in anatomy-partonomy.json -> ambiguous_surface_forms."
+    },
+    {
+      "id": "mg_middle_back",
+      "catalog_term": "middle back",
+      "pref_label": "Mid-back musculature",
+      "alt_labels": ["middle back", "mid back", "rhomboids", "mid traps"],
+      "exercise_count": 3,
+      "mappings": [
+        {"predicate": "skos:broader", "target": "snomed:41777002", "target_label": "Structure of muscle of upper back", "confidence": "low", "note": "The weakest mapping in this file, and kept only for traversal reachability. SNOMED CT partitions back musculature into upper and lower with nothing between; the rhomboids and middle trapezius that a coach means by 'middle back' are classified under upper back. Confidence is low, so this mapping is display-and-traversal only and is never the sole basis for a safety decision."},
+        {"predicate": "skos:related", "target": "snomed:3865001", "target_label": "Structure of interscapular region of back", "confidence": "medium", "note": "The correct region, but a region concept rather than a muscle concept - so it cannot serve as the primary mapping for a muscle_groups value."}
+      ],
+      "declined": [
+        {"vocabulary": "ncit_via_ope", "reason": "OPE contains no Rhomboid class of any kind and no mid-back group. Nothing to map to."}
+      ]
+    },
+    {
+      "id": "mg_obliques",
+      "catalog_term": "obliques",
+      "pref_label": "Oblique abdominal muscles",
+      "alt_labels": ["obliques", "oblique", "side abs"],
+      "exercise_count": 3,
+      "mappings": [
+        {"predicate": "skos:narrower", "target": "snomed:1179025002", "target_label": "Structure of external oblique abdominal muscle", "confidence": "high"},
+        {"predicate": "skos:narrower", "target": "snomed:1179024003", "target_label": "Structure of obliquus internus abdominis muscle", "confidence": "high"},
+        {"predicate": "skos:broader", "target": "snomed:818995003", "target_label": "Abdominal skeletal muscle", "confidence": "high"},
+        {"predicate": "skos:narrower", "target": "ncit:External_Oblique_Muscle", "target_label": "External Oblique Muscle", "confidence": "high", "via": "OPE"},
+        {"predicate": "skos:narrower", "target": "ncit:Internal_Oblique_Muscle", "target_label": "Internal Oblique Muscle", "confidence": "high", "via": "OPE"}
+      ],
+      "notes": "No single 'obliques' group concept exists in either vocabulary. Modelled as a narrower pair plus a broader parent rather than picking one of the two and calling it exact. Caution for anyone extending this: NCIT's Superior_Oblique_Muscle and Inferior_Oblique_Muscle are eye muscles."
+    },
+    {
+      "id": "mg_quads",
+      "catalog_term": "quads",
+      "pref_label": "Quadriceps femoris",
+      "alt_labels": ["quads", "quad", "quadriceps", "front of thigh"],
+      "exercise_count": 12,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:21989003", "target_label": "Structure of quadriceps femoris muscle", "confidence": "high"},
+        {"predicate": "skos:exactMatch", "target": "ncit:Quadriceps_Muscle_of_the_Thigh", "target_label": "Quadriceps Muscle of the Thigh", "confidence": "high", "via": "OPE"},
+        {"predicate": "skos:narrower", "target": "snomed:72226001", "target_label": "Structure of rectus femoris muscle", "confidence": "high", "note": "Also a hip flexor. The partonomy is a DAG here, deliberately."}
+      ]
+    },
+    {
+      "id": "mg_rotator_cuff",
+      "catalog_term": "rotator cuff",
+      "pref_label": "Rotator cuff muscles",
+      "alt_labels": ["rotator cuff", "cuff", "RC", "supraspinatus"],
+      "exercise_count": 1,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:426821001", "target_label": "Muscle of rotator cuff", "confidence": "high", "note": "The muscles-only concept, whose children are supraspinatus, infraspinatus, teres minor and subscapularis. Correct for a muscle_groups value."},
+        {"predicate": "skos:broader", "target": "snomed:7885001", "target_label": "Structure of rotator cuff including muscles and tendons", "confidence": "high", "note": "Used instead as the anchor for rotator cuff *injury* rules, which are usually tendon pathology rather than muscle pathology."}
+      ],
+      "declined": [
+        {"vocabulary": "ncit_via_ope", "reason": "OPE has no Rotator_Cuff class, and of the four cuff muscles imports only Teres_Minor_Muscle. Supraspinatus, infraspinatus and subscapularis are all absent. Mapping to teres minor alone would be actively misleading."}
+      ]
+    },
+    {
+      "id": "mg_traps",
+      "catalog_term": "traps",
+      "pref_label": "Trapezius",
+      "alt_labels": ["traps", "trap", "trapezius", "upper traps"],
+      "exercise_count": 3,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:31764008", "target_label": "Structure of trapezius muscle", "confidence": "high"},
+        {"predicate": "skos:exactMatch", "target": "ncit:Trapezius_Muscle", "target_label": "Trapezius Muscle", "confidence": "high", "via": "OPE"}
+      ]
+    },
+    {
+      "id": "mg_triceps",
+      "catalog_term": "triceps",
+      "pref_label": "Triceps brachii",
+      "alt_labels": ["triceps", "tricep", "tris"],
+      "exercise_count": 8,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:40284004", "target_label": "Triceps brachii muscle structure", "confidence": "high"},
+        {"predicate": "skos:exactMatch", "target": "ncit:Triceps_Brachii", "target_label": "Triceps Brachii", "confidence": "high", "via": "OPE"}
+      ]
+    },
+    {
+      "id": "mg_upper_back",
+      "catalog_term": "upper back",
+      "pref_label": "Upper back musculature",
+      "alt_labels": ["upper back", "upper-back", "rhomboids", "mid traps"],
+      "exercise_count": 8,
+      "mappings": [
+        {"predicate": "skos:exactMatch", "target": "snomed:41777002", "target_label": "Structure of muscle of upper back", "confidence": "high"}
+      ],
+      "declined": [
+        {"vocabulary": "ncit_via_ope", "reason": "No upper-back muscle group class in OPE. Dorsal_Muscle_of_the_Back is the nearest, but it covers the whole back and would collide with the lower back mapping."}
+      ],
+      "disambiguation": "In an injury context 'upper back' should resolve to snomed:122495006 (Thoracic spine structure). Policy in anatomy-partonomy.json -> ambiguous_surface_forms."
+    }
+  ],
+  "declined_mappings_summary": [
+    {"term": "forearms", "vocabulary": "ncit_via_ope", "reason": "members present, no group class"},
+    {"term": "glutes", "vocabulary": "ncit_via_ope", "reason": "two members present, no group class"},
+    {"term": "middle back", "vocabulary": "ncit_via_ope", "reason": "no rhomboid or mid-back class exists at all"},
+    {"term": "rotator cuff", "vocabulary": "ncit_via_ope", "reason": "no cuff class; 3 of 4 cuff muscles absent"},
+    {"term": "upper back", "vocabulary": "ncit_via_ope", "reason": "no upper-back group class"}
+  ]
+}

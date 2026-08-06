@@ -1,0 +1,222 @@
+{
+  "vocabulary": "joint",
+  "source_field": "joints_loaded",
+  "source_file": "data/exercises.json",
+  "distinct_terms": 9,
+  "namespaces": "./namespaces.json",
+  "description": "The 9 distinct joints_loaded strings - the injury-safety join key - mapped onto SNOMED CT body structures. Each entry also names the SNOMED region concept above it and the left/right lateralised concepts below it, so an injury recorded as 'left knee' reaches the catalog's unlateralised 'knee' by traversal rather than by string equality.",
+  "coverage": "9 of 9 mapped, all skos:exactMatch, all confidence high.",
+  "concepts": [
+    {
+      "id": "jt_knee",
+      "catalog_term": "knee",
+      "pref_label": "Knee joint",
+      "alt_labels": ["knee", "knees", "knee joint", "bad knee", "left knee", "right knee"],
+      "region_concept": {"target": "snomed:72696002", "label": "Knee region structure"},
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:49076000",
+          "target_label": "Knee joint structure",
+          "confidence": "high",
+          "verified_via": "NCI EVS snomedct_us 2025_09_01"
+        }
+      ],
+      "laterality": {
+        "left": {"target": "snomed:719442003", "label": "Structure of left knee joint"},
+        "right": {"target": "snomed:719443008", "label": "Structure of right knee joint"},
+        "left_region": {"target": "snomed:82169009", "label": "Structure of left knee region"},
+        "right_region": {"target": "snomed:6757004", "label": "Structure of right knee region"}
+      },
+      "substructure_count": 17
+    },
+    {
+      "id": "jt_hip",
+      "catalog_term": "hip",
+      "pref_label": "Hip joint",
+      "alt_labels": ["hip", "hips", "hip joint"],
+      "region_concept": {"target": "snomed:29836001", "label": "Hip region structure"},
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:24136001",
+          "target_label": "Hip joint structure",
+          "confidence": "high",
+          "verified_via": "NCI EVS snomedct_us 2025_09_01"
+        }
+      ],
+      "laterality": {
+        "left": {"target": "snomed:362907004", "label": "Structure of left hip joint"},
+        "right": {"target": "snomed:362908009", "label": "Structure of right hip joint"}
+      },
+      "substructure_count": 4
+    },
+    {
+      "id": "jt_ankle",
+      "catalog_term": "ankle",
+      "pref_label": "Ankle joint",
+      "alt_labels": ["ankle", "ankles", "ankle joint"],
+      "region_concept": {"target": "snomed:344001", "label": "Ankle region structure"},
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:70258002",
+          "target_label": "Ankle joint structure",
+          "confidence": "high",
+          "verified_via": "NCI EVS snomedct_us 2025_09_01"
+        }
+      ],
+      "laterality": {
+        "left": {"target": "snomed:720532008", "label": "Structure of left ankle joint"},
+        "right": {"target": "snomed:720533003", "label": "Structure of right ankle joint"}
+      },
+      "substructure_count": 5,
+      "notes": "The Achilles tendon (snomed:61352006) is clinically an ankle-adjacent structure but sits under the Achilles region (snomed:699608006) in SNOMED, not under the ankle joint. It is attached to the partonomy through the Achilles region rather than forced under the ankle joint, so an Achilles rule does not silently inherit every ankle exercise."
+    },
+    {
+      "id": "jt_shoulder",
+      "catalog_term": "shoulder",
+      "pref_label": "Shoulder joint complex",
+      "alt_labels": ["shoulder", "shoulders", "shoulder joint", "delts area"],
+      "region_concept": {"target": "snomed:16982005", "label": "Shoulder region structure"},
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:31398001",
+          "target_label": "Joint structure of shoulder region",
+          "confidence": "high",
+          "verified_via": "NCI EVS snomedct_us 2025_09_01"
+        },
+        {
+          "predicate": "skos:closeMatch",
+          "target": "snomed:85537004",
+          "target_label": "Glenohumeral joint structure",
+          "confidence": "high",
+          "note": "The true ball-and-socket joint. Deliberately NOT the exactMatch: the catalog's 'shoulder' covers exercises loading the acromioclavicular and scapulothoracic joints too, and mapping to the glenohumeral joint alone would let an AC-joint injury slip past the filter."
+        }
+      ],
+      "laterality": {
+        "left": {"target": "snomed:722460003", "label": "Structure of left shoulder joint"},
+        "right": {"target": "snomed:722462006", "label": "Structure of right shoulder joint"}
+      },
+      "substructure_count": 8
+    },
+    {
+      "id": "jt_elbow",
+      "catalog_term": "elbow",
+      "pref_label": "Elbow joint",
+      "alt_labels": ["elbow", "elbows", "elbow joint"],
+      "region_concept": {"target": "snomed:127949000", "label": "Elbow region structure"},
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:16953009",
+          "target_label": "Elbow joint structure",
+          "confidence": "high",
+          "verified_via": "NCI EVS snomedct_us 2025_09_01"
+        }
+      ],
+      "laterality": {
+        "left": {"target": "snomed:720591004", "label": "Structure of left elbow joint"},
+        "right": {"target": "snomed:720590003", "label": "Structure of right elbow joint"}
+      },
+      "substructure_count": 7
+    },
+    {
+      "id": "jt_wrist",
+      "catalog_term": "wrist",
+      "pref_label": "Wrist joint",
+      "alt_labels": ["wrist", "wrists", "wrist joint", "radiocarpal joint"],
+      "region_concept": {"target": "snomed:699026005", "label": "Joint structure of wrist region"},
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:74670003",
+          "target_label": "Wrist joint structure",
+          "confidence": "high",
+          "verified_via": "NCI EVS snomedct_us 2025_09_01"
+        }
+      ],
+      "laterality": {
+        "left": {"target": "snomed:720556007", "label": "Structure of left radiocarpal joint"},
+        "right": {"target": "snomed:720555006", "label": "Structure of right radiocarpal joint"}
+      },
+      "substructure_count": 5,
+      "notes": "SNOMED has no body-structure concept for the carpal tunnel - only procedures. A carpal tunnel syndrome rule therefore attaches to the wrist joint region rather than to the tunnel itself. Recorded in the left-out analysis."
+    },
+    {
+      "id": "jt_lumbar_spine",
+      "catalog_term": "lumbar spine",
+      "pref_label": "Lumbar spine",
+      "alt_labels": ["lumbar spine", "lumbar", "low back", "lower back", "bad lower back", "lumbar region", "L-spine"],
+      "region_concept": {"target": "snomed:421060004", "label": "Structure of vertebral column"},
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:122496007",
+          "target_label": "Lumbar spine structure",
+          "confidence": "high",
+          "verified_via": "NCI EVS snomedct_us 2025_09_01"
+        },
+        {
+          "predicate": "skos:closeMatch",
+          "target": "snomed:8454000",
+          "target_label": "Lumbar spine joint structure",
+          "confidence": "high",
+          "note": "The articular subset. Used when a rule concerns the facet joints or discs specifically rather than the whole segment."
+        }
+      ],
+      "laterality": null,
+      "substructure_count": 13,
+      "notes": "This is the target of the brief's 'bad lower back resolves to a lumbar region node' requirement. 'lower back' is listed as an alt label here AND is a distinct muscle_groups value; the disambiguation policy is in anatomy-partonomy.json."
+    },
+    {
+      "id": "jt_thoracic_spine",
+      "catalog_term": "thoracic spine",
+      "pref_label": "Thoracic spine",
+      "alt_labels": ["thoracic spine", "thoracic", "mid back", "upper back", "T-spine"],
+      "region_concept": {"target": "snomed:421060004", "label": "Structure of vertebral column"},
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:122495006",
+          "target_label": "Thoracic spine structure",
+          "confidence": "high",
+          "verified_via": "NCI EVS snomedct_us 2025_09_01"
+        },
+        {
+          "predicate": "skos:closeMatch",
+          "target": "snomed:34449008",
+          "target_label": "Thoracic spine joint structure",
+          "confidence": "high"
+        }
+      ],
+      "laterality": null,
+      "substructure_count": 7
+    },
+    {
+      "id": "jt_cervical_spine",
+      "catalog_term": "cervical spine",
+      "pref_label": "Cervical spine",
+      "alt_labels": ["cervical spine", "cervical", "neck", "C-spine"],
+      "region_concept": {"target": "snomed:421060004", "label": "Structure of vertebral column"},
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:122494005",
+          "target_label": "Structure of cervical vertebral column",
+          "confidence": "high",
+          "verified_via": "NCI EVS snomedct_us 2025_09_01"
+        },
+        {
+          "predicate": "skos:closeMatch",
+          "target": "snomed:129167000",
+          "target_label": "Cervical spine joint structure",
+          "confidence": "high"
+        }
+      ],
+      "laterality": null,
+      "substructure_count": 7
+    }
+  ]
+}

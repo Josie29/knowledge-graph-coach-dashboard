@@ -1,0 +1,567 @@
+{
+  "vocabulary": "condition",
+  "source_field": "injuries[].joint + injuries[].notes",
+  "source_file": "data/member-context.json",
+  "namespaces": "./namespaces.json",
+  "description": "Injury and condition concepts. Unlike the other four vocabularies this one is not enumerable from the catalog - the sample member has exactly one injury, and the whole point is that the system must handle the next one too. The set below covers the sample member's condition plus the musculoskeletal presentations a coach-facing product will actually meet, chosen so that every one of the 9 catalog joints has at least one condition anchored to it.",
+  "coverage": "16 conditions. 15 reach a skos:exactMatch in SNOMED CT; the sixteenth (cond_rotator_cuff_syndrome) reaches only a closeMatch, because SNOMED has no unlateralised concept for it. Every code verified against NCI EVS snomedct_us 2025_09_01. Every condition carries an anatomy_anchor into anatomy-partonomy.json, which is what connects it to the catalog by traversal.",
+  "anchor_semantics": "anatomy_anchor is the most specific structure the condition is about. The safety closure walks upward from there through PART_OF / IS_A, and at each ancestor may also take a single PART_OF step back down, until it reaches a catalog-tagged joint. The optional down-step is what lets a tendon or muscle condition reach the joint it shares a region with: the rotator cuff is part of the shoulder region but not part of the shoulder joint, so upward-only traversal would never connect a cuff problem to shoulder-loading exercises. reaches_catalog_joint_via records which of the two routes each condition takes.",
+  "concepts": [
+    {
+      "id": "cond_pfps",
+      "pref_label": "Patellofemoral pain syndrome",
+      "alt_labels": [
+        "patellofemoral pain",
+        "patellofemoral pain syndrome",
+        "PFPS",
+        "runner's knee",
+        "anterior knee pain",
+        "kneecap pain"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:430725003",
+          "target_label": "Patellofemoral stress syndrome",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:49631000087103",
+          "target_label": "Patellofemoral pain syndrome of left knee joint",
+          "confidence": "high",
+          "laterality": "left"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:49641000087109",
+          "target_label": "Patellofemoral pain syndrome of right knee joint",
+          "confidence": "high",
+          "laterality": "right"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "copper:3005",
+          "target_label": "activity-induced pain",
+          "confidence": "medium",
+          "via": "COPPER"
+        }
+      ],
+      "anatomy_anchor": "snomed:129160003",
+      "anatomy_anchor_label": "Structure of patellofemoral joint",
+      "hops_to_catalog_joint": 2,
+      "traversal": "snomed:129160003 -PART_OF-> snomed:244548003 -PART_OF-> snomed:49076000 (knee, catalog-tagged)",
+      "notes": "This is the sample member's condition. SNOMED's preferred term is 'Patellofemoral stress syndrome' but its lateralised children are literally named 'Patellofemoral pain syndrome of X knee joint', which confirms the synonymy. The member's record has joint='knee' and the diagnosis only in free-text notes, so this concept is reached by resolving the note, not by reading a structured field.",
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_knee_oa",
+      "pref_label": "Osteoarthritis of knee",
+      "alt_labels": [
+        "knee osteoarthritis",
+        "knee arthritis",
+        "knee OA",
+        "degenerative knee"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:239873007",
+          "target_label": "Osteoarthritis of knee",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:323301000119109",
+          "target_label": "Osteoarthritis of left knee",
+          "confidence": "high",
+          "laterality": "left"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:323321000119100",
+          "target_label": "Osteoarthritis of right knee",
+          "confidence": "high",
+          "laterality": "right"
+        }
+      ],
+      "anatomy_anchor": "snomed:305032001",
+      "anatomy_anchor_label": "Structure of articular cartilage of knee joint",
+      "hops_to_catalog_joint": 2,
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_acl_injury",
+      "pref_label": "Anterior cruciate ligament injury",
+      "alt_labels": [
+        "ACL injury",
+        "ACL tear",
+        "torn ACL",
+        "anterior cruciate ligament rupture"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:444470001",
+          "target_label": "Injury of anterior cruciate ligament",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:239725005",
+          "target_label": "Rupture of anterior cruciate ligament",
+          "confidence": "high"
+        }
+      ],
+      "anatomy_anchor": "snomed:895007",
+      "anatomy_anchor_label": "Structure of anterior cruciate ligament of knee joint",
+      "hops_to_catalog_joint": 4,
+      "traversal": "ACL -PART_OF-> cruciate ligaments -PART_OF-> intraarticular ligament -PART_OF-> ligament of knee joint -PART_OF-> knee joint",
+      "notes": "The deepest chain in the partonomy, and the reason the closure is bounded at 5 hops rather than 3.",
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_meniscus_tear",
+      "pref_label": "Tear of meniscus of knee",
+      "alt_labels": [
+        "meniscus tear",
+        "torn meniscus",
+        "meniscal tear",
+        "cartilage tear"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:239720000",
+          "target_label": "Tear of meniscus of knee",
+          "confidence": "high"
+        }
+      ],
+      "anatomy_anchor": "snomed:43653007",
+      "anatomy_anchor_label": "Knee meniscus structure",
+      "hops_to_catalog_joint": 2,
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_patellar_tendinopathy",
+      "pref_label": "Patellar tendinopathy",
+      "alt_labels": [
+        "patellar tendinitis",
+        "patellar tendinopathy",
+        "jumper's knee",
+        "patellar tendon pain"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:37785001",
+          "target_label": "Patellar tendonitis",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:317511000119102",
+          "target_label": "Patellar tendonitis of left knee",
+          "confidence": "high",
+          "laterality": "left"
+        }
+      ],
+      "anatomy_anchor": "snomed:18033002",
+      "anatomy_anchor_label": "Structure of patellar ligament",
+      "hops_to_catalog_joint": 2,
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_low_back_pain",
+      "pref_label": "Low back pain",
+      "alt_labels": [
+        "low back pain",
+        "lower back pain",
+        "bad lower back",
+        "lumbago",
+        "sore lower back"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:279039007",
+          "target_label": "Low back pain",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:278860009",
+          "target_label": "Chronic low back pain",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:278862001",
+          "target_label": "Acute low back pain",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "copper:3040",
+          "target_label": "back pain",
+          "confidence": "high",
+          "via": "COPPER",
+          "note": "COPPER models back pain as a named barrier to physical activity - one of the few places its barrier vocabulary lines up exactly with a clinical concept we need."
+        }
+      ],
+      "anatomy_anchor": "snomed:122496007",
+      "anatomy_anchor_label": "Lumbar spine structure",
+      "hops_to_catalog_joint": 0,
+      "notes": "This is the concept behind the brief's 'bad lower back' example. The phrase resolves here in an injury context, and the anchor is already the catalog-tagged lumbar spine, so no traversal is needed.",
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_lumbar_disc_herniation",
+      "pref_label": "Lumbar disc herniation",
+      "alt_labels": [
+        "herniated disc",
+        "slipped disc",
+        "disc herniation",
+        "bulging disc",
+        "lumbar disc prolapse"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:448591000124106",
+          "target_label": "Herniation of nucleus pulposus of lumbar intervertebral disc",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:closeMatch",
+          "target": "snomed:202708005",
+          "target_label": "Prolapsed lumbar intervertebral disc",
+          "confidence": "high"
+        }
+      ],
+      "anatomy_anchor": "snomed:22468002",
+      "anatomy_anchor_label": "Structure of nucleus pulposus of intervertebral disc of lumbar vertebra",
+      "hops_to_catalog_joint": 5,
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_shoulder_impingement",
+      "pref_label": "Shoulder impingement syndrome",
+      "alt_labels": [
+        "shoulder impingement",
+        "impingement",
+        "subacromial impingement",
+        "painful arc"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:239960007",
+          "target_label": "Impingement syndrome of shoulder region",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:310411000119104",
+          "target_label": "Impingement syndrome of left shoulder region",
+          "confidence": "high",
+          "laterality": "left"
+        }
+      ],
+      "anatomy_anchor": "snomed:31398001",
+      "anatomy_anchor_label": "Joint structure of shoulder region",
+      "hops_to_catalog_joint": 0,
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_rotator_cuff_syndrome",
+      "pref_label": "Rotator cuff syndrome",
+      "alt_labels": [
+        "rotator cuff syndrome",
+        "rotator cuff pain",
+        "cuff tendinopathy",
+        "shoulder cuff problem"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:closeMatch",
+          "target": "snomed:442520000",
+          "target_label": "Inflammation of rotator cuff tendon",
+          "confidence": "medium"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "snomed:414033006",
+          "target_label": "Disorder of rotator cuff",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:320021000119106",
+          "target_label": "Left rotator cuff syndrome",
+          "confidence": "high",
+          "laterality": "left"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:320031000119109",
+          "target_label": "Right rotator cuff syndrome",
+          "confidence": "high",
+          "laterality": "right"
+        }
+      ],
+      "anatomy_anchor": "snomed:7885001",
+      "anatomy_anchor_label": "Structure of rotator cuff including muscles and tendons",
+      "hops_to_catalog_joint": 2,
+      "notes": "A genuine modelling wrinkle. SNOMED CT has no unlateralised 'Rotator cuff syndrome' - only left and right variants, plus an unlateralised parent that is broader ('Disorder of rotator cuff'). Rather than pick a side arbitrarily, this concept is anchored on the broader disorder and carries both lateralised children as narrower. Recorded because it is exactly the kind of asymmetry that silently breaks a filter written assuming every condition has an unlateralised form.",
+      "reaches_catalog_joint_via": "region_descent"
+    },
+    {
+      "id": "cond_rotator_cuff_tear",
+      "pref_label": "Rotator cuff tear",
+      "alt_labels": [
+        "rotator cuff tear",
+        "torn rotator cuff",
+        "cuff tear"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:424175006",
+          "target_label": "Nontraumatic rotator cuff tear",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:202843000",
+          "target_label": "Complete rupture of rotator cuff",
+          "confidence": "high"
+        }
+      ],
+      "anatomy_anchor": "snomed:7885001",
+      "anatomy_anchor_label": "Structure of rotator cuff including muscles and tendons",
+      "hops_to_catalog_joint": 2,
+      "reaches_catalog_joint_via": "region_descent"
+    },
+    {
+      "id": "cond_lateral_epicondylitis",
+      "pref_label": "Lateral epicondylitis",
+      "alt_labels": [
+        "tennis elbow",
+        "lateral epicondylitis",
+        "lateral elbow pain",
+        "elbow tendinopathy"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:202855006",
+          "target_label": "Lateral epicondylitis",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:312411000119100",
+          "target_label": "Lateral epicondylitis of left humerus",
+          "confidence": "high",
+          "laterality": "left"
+        }
+      ],
+      "anatomy_anchor": "snomed:245234007",
+      "anatomy_anchor_label": "Structure of proximal common extensor tendon insertion within elbow region",
+      "hops_to_catalog_joint": 2,
+      "notes": "Anchored on the common extensor tendon rather than the elbow joint, because the pathology is tendon rather than articular. The distinction matters: gripping and wrist-extension load provoke it, whereas elbow flexion under load may not.",
+      "reaches_catalog_joint_via": "region_descent"
+    },
+    {
+      "id": "cond_ankle_sprain",
+      "pref_label": "Sprain of ankle",
+      "alt_labels": [
+        "ankle sprain",
+        "sprained ankle",
+        "rolled ankle",
+        "twisted ankle",
+        "lateral ankle sprain"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:44465007",
+          "target_label": "Sprain of ankle",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:11833631000119105",
+          "target_label": "Sprain of left ankle",
+          "confidence": "high",
+          "laterality": "left"
+        }
+      ],
+      "anatomy_anchor": "snomed:67211007",
+      "anatomy_anchor_label": "Structure of ligament of ankle joint",
+      "hops_to_catalog_joint": 1,
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_achilles_tendinopathy",
+      "pref_label": "Achilles tendinopathy",
+      "alt_labels": [
+        "achilles tendinopathy",
+        "achilles tendinitis",
+        "achilles pain",
+        "heel cord pain"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:11654001",
+          "target_label": "Achilles tendinitis",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:700381000",
+          "target_label": "Non-insertional Achilles tendinopathy",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:700380004",
+          "target_label": "Insertional Achilles tendinopathy",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "snomed:702605005",
+          "target_label": "Disorder of Achilles tendon",
+          "confidence": "high"
+        }
+      ],
+      "anatomy_anchor": "snomed:61352006",
+      "anatomy_anchor_label": "Structure of Achilles tendon",
+      "hops_to_catalog_joint": 3,
+      "notes": "SNOMED has no unqualified 'Achilles tendinopathy' - only the insertional and non-insertional variants plus 'Achilles tendinitis'. Mapped exact to the tendinitis concept with both tendinopathy variants as narrower. Reaching the ankle-tagged catalog exercises needs the one curated PART_OF edge in the partonomy (Achilles region -> ankle region), because SNOMED files the Achilles tendon under its own region.",
+      "reaches_catalog_joint_via": "region_descent"
+    },
+    {
+      "id": "cond_carpal_tunnel",
+      "pref_label": "Carpal tunnel syndrome",
+      "alt_labels": [
+        "carpal tunnel",
+        "carpal tunnel syndrome",
+        "CTS",
+        "wrist nerve pain"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:57406009",
+          "target_label": "Carpal tunnel syndrome",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:narrower",
+          "target": "snomed:293861000119102",
+          "target_label": "Carpal tunnel syndrome of left upper limb",
+          "confidence": "high",
+          "laterality": "left"
+        }
+      ],
+      "anatomy_anchor": "snomed:74670003",
+      "anatomy_anchor_label": "Wrist joint structure",
+      "hops_to_catalog_joint": 0,
+      "notes": "Anchored on the wrist joint by necessity, not by preference. SNOMED CT has no body-structure concept for the carpal tunnel itself - only procedures on it. The anchor is therefore coarser than the pathology, which makes the resulting rules slightly over-broad; that is recorded rather than hidden.",
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_cervical_radiculopathy",
+      "pref_label": "Cervical radiculopathy",
+      "alt_labels": [
+        "cervical radiculopathy",
+        "pinched nerve in neck",
+        "neck radiculopathy",
+        "nerve pain in neck"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:54404000",
+          "target_label": "Cervical radiculopathy",
+          "confidence": "high"
+        }
+      ],
+      "anatomy_anchor": "snomed:122494005",
+      "anatomy_anchor_label": "Structure of cervical vertebral column",
+      "hops_to_catalog_joint": 0,
+      "reaches_catalog_joint_via": "ancestor"
+    },
+    {
+      "id": "cond_neck_pain",
+      "pref_label": "Neck pain",
+      "alt_labels": [
+        "neck pain",
+        "sore neck",
+        "stiff neck",
+        "cervical pain"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "snomed:81680005",
+          "target_label": "Neck pain",
+          "confidence": "high"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "copper:3001",
+          "target_label": "pain feeling",
+          "confidence": "low",
+          "via": "COPPER"
+        }
+      ],
+      "anatomy_anchor": "snomed:122494005",
+      "anatomy_anchor_label": "Structure of cervical vertebral column",
+      "hops_to_catalog_joint": 0,
+      "reaches_catalog_joint_via": "ancestor"
+    }
+  ],
+  "catalog_joint_coverage": {
+    "knee": [
+      "cond_pfps",
+      "cond_knee_oa",
+      "cond_acl_injury",
+      "cond_meniscus_tear",
+      "cond_patellar_tendinopathy"
+    ],
+    "lumbar spine": [
+      "cond_low_back_pain",
+      "cond_lumbar_disc_herniation"
+    ],
+    "shoulder": [
+      "cond_shoulder_impingement",
+      "cond_rotator_cuff_syndrome",
+      "cond_rotator_cuff_tear"
+    ],
+    "elbow": [
+      "cond_lateral_epicondylitis"
+    ],
+    "ankle": [
+      "cond_ankle_sprain",
+      "cond_achilles_tendinopathy"
+    ],
+    "wrist": [
+      "cond_carpal_tunnel"
+    ],
+    "cervical spine": [
+      "cond_cervical_radiculopathy",
+      "cond_neck_pain"
+    ],
+    "hip": [],
+    "thoracic spine": []
+  },
+  "known_gaps": [
+    "hip and thoracic spine have no condition anchored to them. Both are catalog joints (25 and 2 exercises respectively), so a hip or thoracic complaint currently degrades to the blunt joint-level filter rather than to a mechanics-aware rule. Femoroacetabular impingement and thoracic facet irritation are the obvious next two to curate.",
+    "No condition here is a systemic or cardiometabolic one. The sample member's lab panel is in scope for the copilot but not for the movement graph, and modelling e.g. uncontrolled hypertension as a contraindication to heavy axial loading would need clinical sign-off this exercise cannot supply."
+  ]
+}
