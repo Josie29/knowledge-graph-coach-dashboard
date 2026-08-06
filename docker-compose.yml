@@ -60,7 +60,12 @@ services:
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       LANGFUSE_HOST: ${LANGFUSE_HOST:-https://cloud.langfuse.com}
+      # The image only contains app/, so data/ is mounted rather than copied.
+      # Without this the seed-file fallback in members.py cannot find the
+      # context when Neo4j is unreachable.
+      DATA_DIR: /app/data
     volumes:
+      - ./data:/app/data:ro
       - model-cache:/root/.cache
     depends_on:
       neo4j:
