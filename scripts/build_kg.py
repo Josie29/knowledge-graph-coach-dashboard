@@ -1,10 +1,13 @@
-"""Build KG 1 — the movement/clinical graph — from the curated ontology subset.
+"""Build both knowledge graphs: KG 1 (movement/clinical) and KG 2 (member context).
 
-Pipeline (docs/kg1-schema.md §8): parse the hand-curated JSON in ``data/ontology/``
-with rdflib to materialise the derived SKOS triples (RDF is derived, never
-hand-maintained), validate the curation against ``data/exercises.json``, then emit
-Cypher and load Neo4j. Safe to re-run: every node and relationship is MERGEd on a
-stable key and properties are overwritten with the current curated values.
+KG 1 pipeline (docs/kg1-schema.md §8): parse the hand-curated JSON in
+``data/ontology/`` with rdflib to materialise the derived SKOS triples (RDF is
+derived, never hand-maintained), validate the curation against
+``data/exercises.json``, then emit Cypher and load Neo4j. KG 2 (issue #7)
+ingests ``data/member-context.json`` afterwards and cross-links it into KG 1
+(injury → Joint, equipment → Equipment). Safe to re-run: every node and
+relationship is MERGEd on a stable key and properties are overwritten with the
+current curated values.
 
 Usage (local, from the repo root)::
 
@@ -32,6 +35,16 @@ Data quirks handled here (numbering from docs/data-overview.md §4):
     q5  The truncated ``"car"`` pattern maps through movement-patterns.json's
         ``catalog_term`` to ``mp_car`` (Controlled articular rotation).
     q6  ``joints_loaded`` is deduped (one row lists ``shoulder`` twice).
+    q10 Workout-history exercise names join to nothing in the catalog — they
+        are stored as a free-text array on the session node, never linked.
+    q11 The "login frequency" churn reason has no backing field anywhere; it
+        is stored only as text on the CoachBrief node, so the copilot's only
+        citable source for it is the brief itself.
+    q13 "Now" is anchored to the coach brief's generated_for date
+        (2026-06-04), stored as ``Member.now_anchor`` — recency and trend
+        computations must use it, never the wall clock.
+    q14 ``attachments`` is absent (not null) on most chat messages — read
+        with ``.get()`` semantics.
 """
 
 from __future__ import annotations
@@ -519,6 +532,302 @@ def load_and_validate(data_dir: Path) -> Kg1Payload:
     )
 
 
+# ---------------------------------------------------------------------------
+# KG 2 — member context
+# ---------------------------------------------------------------------------
+
+# Labels owned by the KG 2 phase. Every non-Member node also carries
+# :MemberFact, which gives one uniqueness constraint and one reset handle.
+KG2_LABELS = ("Member", "MemberFact")
+
+EXPECTED_KG2 = {
+    "goals": 3,
+    "equipment_links": 5,
+    "injuries": 1,
+    "workouts": 4,
+    "adherence_weeks": 4,
+    "weight_samples": 3,
+    "lab_results": 12,
+    "chat_messages": 4,
+    "brief_tasks": 2,
+}
+
+
+def load_member_context(data_dir: Path) -> dict[str, Any]:
+    """Parse and quirk-correct member-context.json into loadable rows."""
+    doc = _load_json(data_dir / "member-context.json")
+    profile = doc["profile"]
+    member_id = profile["id"]
+    preferences = doc["preferences"]
+    brief = doc["coach_brief"]
+
+    member_props = {
+        **profile,
+        "preferred_session_minutes": preferences["preferred_session_minutes"],
+        "training_days_per_week": preferences["training_days_per_week"],
+        "preferred_days": preferences["preferred_days"],
+        # Dislikes are raw member language on purpose: neither string appears
+        # in the catalog (quirk 9), so exclusion happens through the resolver
+        # at request time, not through a precomputed join.
+        "dislikes": preferences["dislikes"],
+        "preference_notes": preferences["notes"],
+        "adherence_trend": doc["adherence"]["trend"],
+        # q13: every recency/trend computation anchors here, not at the wall
+        # clock — the dataset lives in mid-2026.
+        "now_anchor": brief["generated_for"],
+    }
+
+    injuries = []
+    for injury in doc["injuries"]:
+        region = injury["region"]
+        side = next(
+            (s for s in ("left", "right") if region.lower().startswith(s)), None
+        )
+        injuries.append(
+            {
+                "id": injury["id"],
+                "joint_term": injury["joint"],
+                "props": {
+                    "id": injury["id"],
+                    "region": region,
+                    "side": side,
+                    "joint": injury["joint"],
+                    "status": injury["status"],
+                    "severity": injury["severity"],
+                    "since": injury["since"],
+                    "notes": injury["notes"],
+                },
+            }
+        )
+
+    workouts = [
+        {
+            "id": f"wo_{w['date']}",
+            "date": w["date"],
+            "title": w["title"],
+            "planned": w["planned"],
+            "completed": w["completed"],
+            "duration_min": w["duration_min"],
+            "rpe": w["rpe"],
+            # q10: these names match nothing in the catalog — free text only.
+            "exercise_names": w["exercises"],
+        }
+        for w in doc["workout_history"]
+    ]
+
+    lab_panels = []
+    lab_results = []
+    for panel_type, panel in doc["labs"].items():
+        panel_id = f"lab_{panel_type}_{panel['date']}"
+        lab_panels.append(
+            {"id": panel_id, "panel_type": panel_type, "date": panel["date"]}
+        )
+        for key, value in panel.items():
+            if key == "date":
+                continue
+            # q12 lives downstream: values carry no reference ranges, so no
+            # high/low verdict is stored here — only the measurements.
+            lab_results.append(
+                {"id": f"{panel_id}_{key}", "panel_id": panel_id,
+                 "name": key, "value": value}
+            )
+
+    chat_messages = []
+    for message in doc["chat_history"]:
+        attachments = message.get("attachments", [])  # q14: absent, not null
+        chat_messages.append(
+            {
+                "id": f"chat_{message['ts']}",
+                "ts": message["ts"],
+                "sender": message["from"],
+                "text": message["text"],
+                "has_attachments": bool(attachments),
+                "attachment_types": [a.get("type") for a in attachments],
+                "attachment_captions": [a.get("caption") for a in attachments],
+            }
+        )
+
+    brief_id = f"brief_{brief['generated_for']}"
+    brief_props = {
+        "id": brief_id,
+        "generated_for": brief["generated_for"],
+        "churn_risk_level": brief["churn_risk"]["level"],
+        # q11: the third reason (login frequency) has no backing field in the
+        # dataset; this text IS the only citable source for it.
+        "churn_risk_reasons": brief["churn_risk"]["reasons"],
+    }
+    brief_tasks = [
+        {"id": f"{brief_id}_task_{i}", "type": t["type"], "text": t["text"],
+         "position": i}
+        for i, t in enumerate(brief["morning_tasks"])
+    ]
+
+    return {
+        "member_id": member_id,
+        "member_props": member_props,
+        "goals": doc["goals"],
+        "equipment_terms": doc["equipment_available"],
+        "injuries": injuries,
+        "workouts": workouts,
+        "adherence_weeks": doc["adherence"]["weekly_completion_pct"],
+        "biomarkers": {
+            "id": f"bio_{member_id}",
+            "resting_hr_bpm": doc["biomarkers"]["resting_hr_bpm"],
+            "hrv_ms": doc["biomarkers"]["hrv_ms"],
+            "sleep_hours_last_7_days": doc["biomarkers"]["sleep_hours_last_7_days"],
+        },
+        "weight_samples": doc["biomarkers"]["weight_trend_kg"],
+        "lab_panels": lab_panels,
+        "lab_results": lab_results,
+        "chat_messages": chat_messages,
+        "brief": brief_props,
+        "brief_tasks": brief_tasks,
+    }
+
+
+KG2_SCHEMA_STATEMENTS = [
+    "CREATE CONSTRAINT member_id IF NOT EXISTS "
+    "FOR (m:Member) REQUIRE m.id IS UNIQUE",
+    "CREATE CONSTRAINT member_fact_id IF NOT EXISTS "
+    "FOR (f:MemberFact) REQUIRE f.id IS UNIQUE",
+]
+
+
+def load_kg2_neo4j(session: Any, member: dict[str, Any], reset: bool) -> None:
+    """MERGE the member-context graph and cross-link it into KG 1."""
+    if reset:
+        for label in KG2_LABELS:
+            session.run(f"MATCH (n:{label}) DETACH DELETE n")
+    for statement in KG2_SCHEMA_STATEMENTS:
+        session.run(statement)
+
+    member_id = member["member_id"]
+    session.run(
+        "MERGE (m:Member {id: $id}) SET m += $props",
+        id=member_id,
+        props=member["member_props"],
+    )
+
+    def link(label: str, rel: str, rows: list[dict[str, Any]]) -> None:
+        session.run(
+            f"UNWIND $rows AS row MATCH (m:Member {{id: $member_id}}) "
+            f"MERGE (f:{label}:MemberFact {{id: row.id}}) SET f += row "
+            f"MERGE (m)-[:{rel}]->(f)",
+            rows=rows,
+            member_id=member_id,
+        )
+
+    link("Goal", "HAS_GOAL", member["goals"])
+    link("WorkoutSession", "PERFORMED", member["workouts"])
+    link(
+        "AdherenceWeek",
+        "HAS_ADHERENCE_WEEK",
+        [
+            {"id": f"aw_{w['week_of']}", "week_of": w["week_of"], "pct": w["pct"]}
+            for w in member["adherence_weeks"]
+        ],
+    )
+    link("BiomarkerSnapshot", "HAS_BIOMARKERS", [member["biomarkers"]])
+    link(
+        "WeightSample",
+        "HAS_WEIGHT_SAMPLE",
+        [
+            {"id": f"wt_{w['date']}", "date": w["date"], "kg": w["kg"]}
+            for w in member["weight_samples"]
+        ],
+    )
+    link("LabPanel", "HAS_LAB_PANEL", member["lab_panels"])
+    session.run(
+        "UNWIND $rows AS row MATCH (p:LabPanel {id: row.panel_id}) "
+        "MERGE (r:LabResult:MemberFact {id: row.id}) "
+        "SET r.name = row.name, r.value = row.value "
+        "MERGE (p)-[:HAS_RESULT]->(r)",
+        rows=member["lab_results"],
+    )
+    link("ChatMessage", "HAS_CHAT_MESSAGE", member["chat_messages"])
+    link("CoachBrief", "HAS_BRIEF", [member["brief"]])
+    session.run(
+        "UNWIND $rows AS row MATCH (b:CoachBrief {id: $brief_id}) "
+        "MERGE (t:BriefTask:MemberFact {id: row.id}) SET t += row "
+        "MERGE (b)-[:HAS_TASK]->(t)",
+        rows=member["brief_tasks"],
+        brief_id=member["brief"]["id"],
+    )
+
+    # Cross-links into KG 1. Equipment names in the member file are exact
+    # catalog terms; the injury joins through its structured `joint` field to
+    # the Joint node, which carries the SNOMED mapping (issue #7 acceptance).
+    equipment_result = session.run(
+        "UNWIND $terms AS term "
+        "MATCH (m:Member {id: $member_id}) "
+        "MATCH (q:Equipment {catalog_term: term}) "
+        "MERGE (m)-[:HAS_EQUIPMENT]->(q) RETURN count(q) AS n",
+        terms=member["equipment_terms"],
+        member_id=member_id,
+    ).single()
+    if equipment_result["n"] != len(member["equipment_terms"]):
+        raise CurationError(
+            f"only {equipment_result['n']} of "
+            f"{len(member['equipment_terms'])} equipment terms matched "
+            "catalog Equipment nodes"
+        )
+    for injury in member["injuries"]:
+        link("Injury", "HAS_INJURY", [injury["props"]])
+        joined = session.run(
+            "MATCH (i:Injury {id: $id}) "
+            "MATCH (j:Joint {catalog_term: $term}) "
+            "MERGE (i)-[:AFFECTS]->(j) RETURN count(j) AS n",
+            id=injury["id"],
+            term=injury["joint_term"],
+        ).single()
+        if joined["n"] != 1:
+            raise CurationError(
+                f"injury {injury['id']} joint {injury['joint_term']!r} "
+                "matched no catalog Joint node"
+            )
+
+    _verify_kg2(session, member_id)
+
+
+def _verify_kg2(session: Any, member_id: str) -> None:
+    """Post-load checks: the acceptance queries from issue #7."""
+    counts_query = (
+        "MATCH (m:Member {id: $id}) RETURN "
+        "count{(m)-[:HAS_GOAL]->()} AS goals, "
+        "count{(m)-[:HAS_EQUIPMENT]->()} AS equipment_links, "
+        "count{(m)-[:HAS_INJURY]->()} AS injuries, "
+        "count{(m)-[:PERFORMED]->()} AS workouts, "
+        "count{(m)-[:HAS_ADHERENCE_WEEK]->()} AS adherence_weeks, "
+        "count{(m)-[:HAS_WEIGHT_SAMPLE]->()} AS weight_samples, "
+        "count{(m)-[:HAS_LAB_PANEL]->()-[:HAS_RESULT]->()} AS lab_results, "
+        "count{(m)-[:HAS_CHAT_MESSAGE]->()} AS chat_messages, "
+        "count{(m)-[:HAS_BRIEF]->()-[:HAS_TASK]->()} AS brief_tasks"
+    )
+    record = session.run(counts_query, id=member_id).single()
+    failures = [
+        f"{key}: expected {expected}, got {record[key]}"
+        for key, expected in EXPECTED_KG2.items()
+        if record[key] != expected
+    ]
+    for key in EXPECTED_KG2:
+        print(f"  kg2 {key:16s} {record[key]:3d} (expected {EXPECTED_KG2[key]})")
+
+    snomed = session.run(
+        "MATCH (:Member {id: $id})-[:HAS_INJURY]->(i)-[:AFFECTS]->(j:Joint) "
+        "RETURN i.id AS injury, j.id AS joint, j.exact_match AS snomed",
+        id=member_id,
+    ).single()
+    print(
+        f"  kg2 injury cross-link: {snomed['injury']} → {snomed['joint']} "
+        f"({snomed['snomed']})"
+    )
+    if snomed["joint"] != "jt_knee" or not snomed["snomed"]:
+        failures.append("injury did not cross-link to the SNOMED-mapped knee joint")
+
+    if failures:
+        raise CurationError("KG 2 verification failed: " + "; ".join(failures))
+
+
 SCHEMA_STATEMENTS = [
     "CREATE CONSTRAINT exercise_id IF NOT EXISTS "
     "FOR (e:Exercise) REQUIRE e.id IS UNIQUE",
@@ -538,9 +847,9 @@ SCHEMA_STATEMENTS = [
 ]
 
 
-def load_neo4j(payload: Kg1Payload, uri: str, user: str, password: str, reset: bool,
-               skip_embeddings: bool) -> None:
-    """MERGE the payload into Neo4j and build the indexes."""
+def load_neo4j(payload: Kg1Payload, member: dict[str, Any], uri: str, user: str,
+               password: str, reset: bool, skip_embeddings: bool) -> None:
+    """MERGE both graphs into Neo4j and build the indexes."""
     from neo4j import GraphDatabase
 
     with GraphDatabase.driver(uri, auth=(user, password)) as driver:
@@ -664,6 +973,7 @@ def load_neo4j(payload: Kg1Payload, uri: str, user: str, password: str, reset: b
                 )
 
             _verify(session)
+            load_kg2_neo4j(session, member, reset)
 
 
 def _verify(session: Any) -> None:
@@ -735,8 +1045,9 @@ def main() -> int:
     args = parser.parse_args()
 
     data_dir = Path(os.environ.get("DATA_DIR", _REPO_ROOT / "data"))
-    print(f"KG 1 build — data dir {data_dir}")
+    print(f"KG build — data dir {data_dir}")
     payload = load_and_validate(data_dir)
+    member = load_member_context(data_dir)
     edge_total = sum(len(v) for v in payload.exercise_edges.values())
     print(
         f"  validated: {len(payload.exercises)} exercises, "
@@ -744,6 +1055,11 @@ def main() -> int:
         f"{len(payload.part_of_edges)}+{len(payload.is_a_edges)} partonomy edges, "
         f"{edge_total} exercise edges, {len(payload.rules)} rules, "
         f"{len(payload.rdf)} derived SKOS triples"
+    )
+    print(
+        f"  member context: {member['member_id']} "
+        f"({len(member['goals'])} goals, {len(member['chat_messages'])} chat "
+        f"messages, anchor {member['member_props']['now_anchor']})"
     )
     if args.emit_ttl:
         payload.rdf.serialize(destination=args.emit_ttl, format="turtle")
@@ -758,13 +1074,14 @@ def main() -> int:
     print(f"  loading Neo4j at {uri}")
     load_neo4j(
         payload,
+        member,
         uri=uri,
         user=user,
         password=password,
         reset=args.reset,
         skip_embeddings=args.skip_embeddings,
     )
-    print("KG 1 build complete.")
+    print("KG build complete (KG 1 + KG 2).")
     return 0
 
 
