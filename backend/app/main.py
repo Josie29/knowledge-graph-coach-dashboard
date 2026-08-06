@@ -7,7 +7,10 @@ from neo4j.exceptions import Neo4jError, ServiceUnavailable
 from pydantic import BaseModel
 
 from app.config import settings
+from app.copilot import router as copilot_router
 from app.members import router as members_router
+from app.observability import TracedAsyncDriver, configure_observability
+from app.workouts import router as workouts_router
 
 
 @asynccontextmanager
@@ -17,17 +20,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     Yields:
         None. The driver is stored on ``app.state.neo4j``.
     """
+    configure_observability()
     driver: AsyncDriver = AsyncGraphDatabase.driver(
         settings.neo4j_uri,
         auth=(settings.neo4j_user, settings.neo4j_password),
     )
-    app.state.neo4j = driver
+    # The proxy adds an OTel span per query; spans are no-ops when tracing
+    # is not configured, so this wrap is unconditional.
+    app.state.neo4j = TracedAsyncDriver(driver)
     yield
     await driver.close()
 
 
 app = FastAPI(title="KG Coach API", lifespan=lifespan)
 app.include_router(members_router)
+app.include_router(workouts_router)
+app.include_router(copilot_router)
 
 
 class HealthResponse(BaseModel):

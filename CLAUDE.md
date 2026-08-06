@@ -19,9 +19,12 @@ docker compose up -d --build  # Neo4j + API + web
 ```bash
 cd backend && uv run uvicorn app.main:app --reload   # API on :8000
 cd frontend && npm run dev                           # web on :5173, proxies /api
+cd backend && uv run python ../scripts/build_kg.py   # (re)build the knowledge graph
 ```
 
-Neo4j still needs Docker: `docker compose up -d neo4j`.
+Neo4j still needs Docker: `docker compose up -d neo4j`. In Docker the `kg-build` one-shot
+service runs the build automatically before the API starts. `build_kg.py --help` lists the
+offline flags (`--dry-run`, `--skip-embeddings`, `--emit-ttl`, `--reset`).
 
 ## Checks
 
@@ -29,6 +32,13 @@ Neo4j still needs Docker: `docker compose up -d neo4j`.
 cd backend && uv run pytest      # backend tests live in backend/tests/
 cd frontend && npm run build     # type-check + build
 cd frontend && npm run lint
+```
+
+After changing backend Pydantic response models, regenerate the frontend API types:
+
+```bash
+cd backend && uv run python ../scripts/export_openapi.py ../frontend/openapi.json
+cd frontend && npm run gen:api   # openapi.json -> src/lib/api-types.ts
 ```
 
 ## Layout
