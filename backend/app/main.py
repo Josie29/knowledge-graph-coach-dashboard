@@ -43,19 +43,49 @@ class HealthResponse(BaseModel):
 
     status: str
     neo4j: str
+    ai_enabled: bool
+    model: str
+    exercises: int
+    members: int
+
+
+# Label counts come from Neo4j's store statistics, so this stays O(1) even
+# though the health endpoint is polled on a loop by `make up` and Compose.
+_GRAPH_COUNTS_QUERY = (
+    "RETURN count{(:Exercise)} AS exercises, count{(:Member)} AS members"
+)
 
 
 @app.get("/api/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    """Report API liveness and Neo4j connectivity.
+    """Report API liveness, Neo4j connectivity, and what the graph holds.
+
+    The startup banner (`make up`) reads this to decide when the stack is
+    actually serving and whether the AI features are configured.
 
     Returns:
-        HealthResponse with ``status`` \"ok\" when Neo4j is reachable,
-        \"degraded\" otherwise.
+        HealthResponse with ``status`` \"ok\" when Neo4j is reachable and the
+        graph is loaded, \"degraded\" otherwise. Counts are 0 when degraded.
     """
     driver: AsyncDriver = app.state.neo4j
+    ai_enabled = bool(settings.anthropic_api_key)
     try:
         await driver.verify_connectivity()
+        records, _, _ = await driver.execute_query(_GRAPH_COUNTS_QUERY)
     except (ServiceUnavailable, Neo4jError, OSError) as exc:
-        return HealthResponse(status="degraded", neo4j=f"unreachable: {exc}")
-    return HealthResponse(status="ok", neo4j="connected")
+        return HealthResponse(
+            status="degraded",
+            neo4j=f"unreachable: {exc}",
+            ai_enabled=ai_enabled,
+            model=settings.anthropic_model,
+            exercises=0,
+            members=0,
+        )
+    return HealthResponse(
+        status="ok",
+        neo4j="connected",
+        ai_enabled=ai_enabled,
+        model=settings.anthropic_model,
+        exercises=records[0]["exercises"],
+        members=records[0]["members"],
+    )

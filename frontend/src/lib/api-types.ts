@@ -125,11 +125,14 @@ export interface paths {
         };
         /**
          * Health
-         * @description Report API liveness and Neo4j connectivity.
+         * @description Report API liveness, Neo4j connectivity, and what the graph holds.
+         *
+         *     The startup banner (`make up`) reads this to decide when the stack is
+         *     actually serving and whether the AI features are configured.
          *
          *     Returns:
-         *         HealthResponse with ``status`` "ok" when Neo4j is reachable,
-         *         "degraded" otherwise.
+         *         HealthResponse with ``status`` "ok" when Neo4j is reachable and the
+         *         graph is loaded, "degraded" otherwise. Counts are 0 when degraded.
          */
         get: operations["health_api_health_get"];
         put?: never;
@@ -316,6 +319,14 @@ export interface components {
             status: string;
             /** Neo4J */
             neo4j: string;
+            /** Ai Enabled */
+            ai_enabled: boolean;
+            /** Model */
+            model: string;
+            /** Exercises */
+            exercises: number;
+            /** Members */
+            members: number;
         };
         /**
          * InjuryConstraint

@@ -215,7 +215,7 @@
     "/api/health": {
       "get": {
         "summary": "Health",
-        "description": "Report API liveness and Neo4j connectivity.\n\nReturns:\n    HealthResponse with ``status`` \"ok\" when Neo4j is reachable,\n    \"degraded\" otherwise.",
+        "description": "Report API liveness, Neo4j connectivity, and what the graph holds.\n\nThe startup banner (`make up`) reads this to decide when the stack is\nactually serving and whether the AI features are configured.\n\nReturns:\n    HealthResponse with ``status`` \"ok\" when Neo4j is reachable and the\n    graph is loaded, \"degraded\" otherwise. Counts are 0 when degraded.",
         "operationId": "health_api_health_get",
         "responses": {
           "200": {
@@ -809,12 +809,32 @@
           "neo4j": {
             "type": "string",
             "title": "Neo4J"
+          },
+          "ai_enabled": {
+            "type": "boolean",
+            "title": "Ai Enabled"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "exercises": {
+            "type": "integer",
+            "title": "Exercises"
+          },
+          "members": {
+            "type": "integer",
+            "title": "Members"
           }
         },
         "type": "object",
         "required": [
           "status",
-          "neo4j"
+          "neo4j",
+          "ai_enabled",
+          "model",
+          "exercises",
+          "members"
         ],
         "title": "HealthResponse",
         "description": "Health check result for the API and its Neo4j dependency."

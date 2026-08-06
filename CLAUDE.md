@@ -6,13 +6,18 @@ dashboard on top (AI workout generator + member-context copilot).
 ## Run the full stack
 
 ```bash
-cp .env.example .env          # first time only; ANTHROPIC_API_KEY needed for AI features
-docker compose up -d --build  # Neo4j + API + web
+cp .env.example .env   # first time only; ANTHROPIC_API_KEY needed for AI features
+make up                # Neo4j + kg-build + API + web, then prints the URLs to open
 ```
 
 - Web: http://localhost:5173 · API: http://localhost:8000 · Neo4j Browser: http://localhost:7474
-- `docker compose down` to stop. Data persists in the `neo4j-data` volume.
+- `make up` is a thin wrapper over `docker compose up -d --build`: it polls the web app,
+  then prints a banner sourced from `GET /api/health` (graph counts, whether the AI
+  features are configured). `make down` / `logs` / `restart` / `rebuild` / `test` also exist.
+- Keep `/api/health` and the `banner` target in sync — the Makefile parses that JSON.
+- Data persists in the `neo4j-data` volume.
 - Memory is capped per service (~1.2 GB total); Neo4j heap/pagecache are pinned deliberately.
+- `api` and `web` have healthchecks, so `web` only starts once the API answers.
 
 ## Run pieces without Docker
 

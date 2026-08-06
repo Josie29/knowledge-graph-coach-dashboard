@@ -16,22 +16,36 @@ Two graphs power two surfaces:
 ## Run it
 
 ```bash
-cp .env.example .env          # add ANTHROPIC_API_KEY for the AI features
-docker compose up -d --build  # Neo4j + graph build + API + web
+cp .env.example .env   # add ANTHROPIC_API_KEY for the AI features
+make up                # build, start Neo4j + graph build + API + web, print the URLs
 ```
 
-Open **http://localhost:5173** (any name signs in — auth is mocked), API at
-:8000, Neo4j Browser at :7474 (`neo4j` / `password`). The one-shot `kg-build`
-service constructs both graphs before the API starts and is idempotent — safe to re-run on
-every `up`. Without an `ANTHROPIC_API_KEY` everything except the two AI features works
-(the endpoints return a clear 503).
+`make up` waits until every service actually serves, then prints where to go:
 
-Checks:
-
-```bash
-cd backend && uv run pytest      # unit tests offline; integration tests when Neo4j is up
-cd frontend && npm run build && npm run lint
 ```
+   Web app        http://localhost:5173   <- open this
+   API docs       http://localhost:8000/docs
+   Neo4j Browser  http://localhost:7474   (neo4j / password)
+
+   Graph          50 exercises, 1 member(s) loaded
+   AI features    enabled (claude-haiku-4-5)
+```
+
+Open the web app and sign in with any name — auth is mocked. The one-shot `kg-build`
+service constructs both graphs before the API starts and is idempotent, so it is safe to
+re-run on every `up`. Without an `ANTHROPIC_API_KEY` everything except the two AI features
+works (those endpoints return a clear 503); add the key and run `make restart`.
+
+`make` wraps `docker compose`, which still works directly if you prefer it:
+
+| Target | What |
+| --- | --- |
+| `make up` | build + start everything, then print the banner |
+| `make down` | stop the stack (the graph survives in the `neo4j-data` volume) |
+| `make logs` | follow logs for all services |
+| `make restart` | recreate api + web to pick up `.env` changes |
+| `make rebuild` | re-run the knowledge-graph build against the running Neo4j |
+| `make test` | backend pytest + frontend type-check and lint |
 
 ## Architecture
 
