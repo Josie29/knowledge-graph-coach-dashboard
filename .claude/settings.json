@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(gh *)",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/gh-repo-guard.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking gh --repo scope"
+          }
+        ]
+      }
+    ]
+  }
+}
