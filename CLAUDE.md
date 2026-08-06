@@ -60,8 +60,12 @@ cd frontend && npm run gen:api   # openapi.json -> src/lib/api-types.ts
 
 - GitHub work goes to `Josie29/knowledge-graph-coach-dashboard` (`origin`) only. Never push,
   file issues, or open PRs on `upstream` (the assessment org's repo).
-- Work is tracked as issues #1-#14; branch `feature/<kebab-description>`, PR against `main`,
-  squash merge.
+- Work is tracked as issues #1-#14. **Commit directly to `main`** — there is no deployment,
+  no CI gate, and the brief asks only for a runnable repo plus README, so branch-and-PR buys
+  nothing here. Overrides the global default of branching off `main`.
+  - Still branch + PR when a change is genuinely risky (schema or ingest rewrites) or when
+    the PR description is the artifact worth keeping. Squash merge those.
+  - Keep `main` runnable: `make up`, `uv run pytest`, and `npm run build` pass before pushing.
 - LLM calls go through Pydantic AI; typed agent outputs are the API contract. The model is a
   single switch point — `ANTHROPIC_MODEL` in `.env`, read via `settings.anthropic_model`.
   Default is `claude-haiku-4-5` to keep API spend low while validating; switch to
