@@ -90,6 +90,128 @@
         }
       }
     },
+    "/api/members/{member_id}/context": {
+      "get": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "Member Context Slice",
+        "description": "Read sections of the member-context graph directly (no LLM).\n\nBacks the copilot panel's morning-brief and chat-history surfaces \u2014 the\nsame retrieval the agent's ``member_context`` tool uses.\n\nRaises:\n    HTTPException: 404 for an unknown member, 503 when Neo4j is down.",
+        "operationId": "member_context_slice_api_members__member_id__context_get",
+        "parameters": [
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Member Id"
+            }
+          },
+          {
+            "name": "sections",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "profile",
+                  "goals",
+                  "adherence",
+                  "biomarkers",
+                  "weight_trend",
+                  "labs",
+                  "workout_history",
+                  "chat_history",
+                  "coach_brief",
+                  "injuries",
+                  "equipment"
+                ],
+                "type": "string"
+              },
+              "default": [
+                "profile",
+                "goals",
+                "adherence",
+                "biomarkers",
+                "weight_trend",
+                "labs",
+                "workout_history",
+                "chat_history",
+                "coach_brief",
+                "injuries",
+                "equipment"
+              ],
+              "title": "Sections"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextSlice"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/copilot/{member_id}": {
+      "post": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "Copilot Run",
+        "description": "Run one copilot turn for a member, streaming AG-UI events back.\n\nRaises:\n    HTTPException: 503 when the model API key or Neo4j is unavailable.",
+        "operationId": "copilot_run_api_copilot__member_id__post",
+        "parameters": [
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Member Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -112,6 +234,37 @@
   },
   "components": {
     "schemas": {
+      "AdherenceSlice": {
+        "properties": {
+          "trend": {
+            "type": "string",
+            "title": "Trend"
+          },
+          "weeks": {
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Weeks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trend",
+          "weeks"
+        ],
+        "title": "AdherenceSlice"
+      },
       "Alternative": {
         "properties": {
           "exercise_id": {
@@ -146,6 +299,69 @@
         ],
         "title": "Alternative",
         "description": "A feasible, safe substitute for an excluded exercise."
+      },
+      "BiomarkerSlice": {
+        "properties": {
+          "resting_hr_bpm": {
+            "type": "integer",
+            "title": "Resting Hr Bpm"
+          },
+          "hrv_ms": {
+            "type": "integer",
+            "title": "Hrv Ms"
+          },
+          "sleep_hours_last_7_days": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Sleep Hours Last 7 Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resting_hr_bpm",
+          "hrv_ms",
+          "sleep_hours_last_7_days"
+        ],
+        "title": "BiomarkerSlice"
+      },
+      "CoachBriefSlice": {
+        "properties": {
+          "generated_for": {
+            "type": "string",
+            "title": "Generated For"
+          },
+          "churn_risk_level": {
+            "type": "string",
+            "title": "Churn Risk Level"
+          },
+          "churn_risk_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Churn Risk Reasons"
+          },
+          "tasks": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_for",
+          "churn_risk_level",
+          "churn_risk_reasons",
+          "tasks"
+        ],
+        "title": "CoachBriefSlice"
       },
       "ConstraintSet": {
         "properties": {
@@ -195,6 +411,252 @@
         "type": "object",
         "title": "ConstraintSet",
         "description": "The merged, serializable constraint state for one conversation.\n\nReturned on every plan as ``constraints_used``; send it back as\n``prior_constraints`` with a follow-up message to adjust the plan."
+      },
+      "ContextSlice": {
+        "properties": {
+          "member_id": {
+            "type": "string",
+            "title": "Member Id"
+          },
+          "now_anchor": {
+            "type": "string",
+            "title": "Now Anchor",
+            "description": "The dataset's 'today'. All recency/trend statements must be computed against this date, never the wall clock."
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile"
+          },
+          "goals": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goals"
+          },
+          "adherence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdherenceSlice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "biomarkers": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BiomarkerSlice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weight_trend": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Trend"
+          },
+          "labs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LabPanelSlice"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labs"
+          },
+          "workout_history": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workout History"
+          },
+          "chat_history": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat History"
+          },
+          "coach_brief": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoachBriefSlice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "injuries": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Injuries"
+          },
+          "equipment": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "member_id",
+          "now_anchor"
+        ],
+        "title": "ContextSlice",
+        "description": "The member-context data returned to the agent, one field per section."
       },
       "ExcludedExercise": {
         "properties": {
@@ -390,6 +852,32 @@
         ],
         "title": "InjuryConstraint",
         "description": "One active injury, already resolved to a Condition concept."
+      },
+      "LabPanelSlice": {
+        "properties": {
+          "panel_type": {
+            "type": "string",
+            "title": "Panel Type"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "results": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "panel_type",
+          "date",
+          "results"
+        ],
+        "title": "LabPanelSlice"
       },
       "MemberProfile": {
         "properties": {

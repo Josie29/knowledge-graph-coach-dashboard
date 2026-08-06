@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Copilot } from '@/components/Copilot'
 import { HealthIndicator } from '@/components/HealthIndicator'
 import { WorkoutGenerator } from '@/components/WorkoutGenerator'
 import { fetchMember, JORDAN_MEMBER_ID, type Goal, type MemberResponse } from '@/lib/api'
@@ -50,22 +45,6 @@ function GoalItem({ goal }: { goal: Goal }) {
         )}
       </span>
     </li>
-  )
-}
-
-function PlaceholderPanel({ title, description, hint }: { title: string; description: string; hint: string }) {
-  return (
-    <Card className="min-h-64">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-1 items-center justify-center rounded-lg">
-        <p className="rounded-lg border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
-          {hint}
-        </p>
-      </CardContent>
-    </Card>
   )
 }
 
@@ -152,11 +131,7 @@ export function MemberView({ session, onSignOut }: MemberViewProps) {
           className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-2"
         >
           <WorkoutGenerator memberId={JORDAN_MEMBER_ID} />
-          <PlaceholderPanel
-            title="AI Copilot"
-            description="Ask questions about this member's context, grounded in the knowledge graph."
-            hint="Coming soon — copilot chat lands in a later issue."
-          />
+          <Copilot memberId={JORDAN_MEMBER_ID} />
         </section>
       </main>
     </div>

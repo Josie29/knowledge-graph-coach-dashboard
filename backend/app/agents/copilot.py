@@ -184,7 +184,7 @@ async def fetch_context_slice(
         "[(m)-[:PERFORMED]->(wo) | wo{.date, .title, .completed, .duration_min, "
         ".rpe, .exercise_names}] AS workouts, "
         "[(m)-[:HAS_CHAT_MESSAGE]->(c) | c{.ts, .sender, .text, .has_attachments, "
-        ".attachment_types}] AS chat, "
+        ".attachment_types, .attachment_captions}] AS chat, "
         "[(m)-[:HAS_BRIEF]->(br) | br{.generated_for, .churn_risk_level, "
         ".churn_risk_reasons, tasks: [(br)-[:HAS_TASK]->(t) | "
         "t{.type, .text, .position}]}] AS briefs, "

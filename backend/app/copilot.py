@@ -8,19 +8,50 @@ receives Server-Sent Events — streamed text, tool calls, and the typed
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 from neo4j import AsyncDriver
 from neo4j.exceptions import Neo4jError, ServiceUnavailable
 from pydantic_ai.ui.ag_ui import AGUIAdapter
 
-from app.agents.copilot import CopilotDeps, copilot_agent
+from app.agents.copilot import (
+    ALL_SECTIONS,
+    ContextSlice,
+    CopilotDeps,
+    SectionName,
+    copilot_agent,
+    fetch_context_slice,
+)
 from app.agents.model import build_model, build_model_settings
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["copilot"])
+
+
+@router.get("/members/{member_id}/context", response_model=ContextSlice)
+async def member_context_slice(
+    member_id: str,
+    request: Request,
+    sections: list[SectionName] = Query(default=list(ALL_SECTIONS)),
+) -> ContextSlice:
+    """Read sections of the member-context graph directly (no LLM).
+
+    Backs the copilot panel's morning-brief and chat-history surfaces — the
+    same retrieval the agent's ``member_context`` tool uses.
+
+    Raises:
+        HTTPException: 404 for an unknown member, 503 when Neo4j is down.
+    """
+    driver: AsyncDriver = request.app.state.neo4j
+    try:
+        return await fetch_context_slice(driver, member_id, list(sections))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except (ServiceUnavailable, Neo4jError, OSError) as exc:
+        logger.error("Context slice read failed: %s", exc)
+        raise HTTPException(status_code=503, detail="knowledge graph unavailable")
 
 
 @router.post("/copilot/{member_id}")

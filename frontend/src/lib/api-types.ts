@@ -67,6 +67,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/members/{member_id}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Member Context Slice
+         * @description Read sections of the member-context graph directly (no LLM).
+         *
+         *     Backs the copilot panel's morning-brief and chat-history surfaces — the
+         *     same retrieval the agent's ``member_context`` tool uses.
+         *
+         *     Raises:
+         *         HTTPException: 404 for an unknown member, 503 when Neo4j is down.
+         */
+        get: operations["member_context_slice_api_members__member_id__context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copilot Run
+         * @description Run one copilot turn for a member, streaming AG-UI events back.
+         *
+         *     Raises:
+         *         HTTPException: 503 when the model API key or Neo4j is unavailable.
+         */
+        post: operations["copilot_run_api_copilot__member_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -95,6 +144,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdherenceSlice */
+        AdherenceSlice: {
+            /** Trend */
+            trend: string;
+            /** Weeks */
+            weeks: {
+                [key: string]: string | number;
+            }[];
+        };
         /**
          * Alternative
          * @description A feasible, safe substitute for an excluded exercise.
@@ -108,6 +166,28 @@ export interface components {
             shared_patterns: string[];
             /** Shared Muscle Groups */
             shared_muscle_groups: string[];
+        };
+        /** BiomarkerSlice */
+        BiomarkerSlice: {
+            /** Resting Hr Bpm */
+            resting_hr_bpm: number;
+            /** Hrv Ms */
+            hrv_ms: number;
+            /** Sleep Hours Last 7 Days */
+            sleep_hours_last_7_days: number[];
+        };
+        /** CoachBriefSlice */
+        CoachBriefSlice: {
+            /** Generated For */
+            generated_for: string;
+            /** Churn Risk Level */
+            churn_risk_level: string;
+            /** Churn Risk Reasons */
+            churn_risk_reasons: string[];
+            /** Tasks */
+            tasks: {
+                [key: string]: string;
+            }[];
         };
         /**
          * ConstraintSet
@@ -127,6 +207,50 @@ export interface components {
             downrank_concept_ids?: string[];
             /** Notes */
             notes?: string[];
+        };
+        /**
+         * ContextSlice
+         * @description The member-context data returned to the agent, one field per section.
+         */
+        ContextSlice: {
+            /** Member Id */
+            member_id: string;
+            /**
+             * Now Anchor
+             * @description The dataset's 'today'. All recency/trend statements must be computed against this date, never the wall clock.
+             */
+            now_anchor: string;
+            /** Profile */
+            profile?: {
+                [key: string]: string | number;
+            } | null;
+            /** Goals */
+            goals?: {
+                [key: string]: string | number | null;
+            }[] | null;
+            adherence?: components["schemas"]["AdherenceSlice"] | null;
+            biomarkers?: components["schemas"]["BiomarkerSlice"] | null;
+            /** Weight Trend */
+            weight_trend?: {
+                [key: string]: string | number;
+            }[] | null;
+            /** Labs */
+            labs?: components["schemas"]["LabPanelSlice"][] | null;
+            /** Workout History */
+            workout_history?: {
+                [key: string]: string | number | boolean | string[] | null;
+            }[] | null;
+            /** Chat History */
+            chat_history?: {
+                [key: string]: string | boolean | string[] | null;
+            }[] | null;
+            coach_brief?: components["schemas"]["CoachBriefSlice"] | null;
+            /** Injuries */
+            injuries?: {
+                [key: string]: string | null;
+            }[] | null;
+            /** Equipment */
+            equipment?: string[] | null;
         };
         /**
          * ExcludedExercise
@@ -212,6 +336,17 @@ export interface components {
              * @enum {string}
              */
             severity: "mild" | "moderate" | "severe";
+        };
+        /** LabPanelSlice */
+        LabPanelSlice: {
+            /** Panel Type */
+            panel_type: string;
+            /** Date */
+            date: string;
+            /** Results */
+            results: {
+                [key: string]: number;
+            };
         };
         /**
          * MemberProfile
@@ -421,6 +556,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkoutPlan"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    member_context_slice_api_members__member_id__context_get: {
+        parameters: {
+            query?: {
+                sections?: ("profile" | "goals" | "adherence" | "biomarkers" | "weight_trend" | "labs" | "workout_history" | "chat_history" | "coach_brief" | "injuries" | "equipment")[];
+            };
+            header?: never;
+            path: {
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextSlice"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    copilot_run_api_copilot__member_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
