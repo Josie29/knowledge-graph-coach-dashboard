@@ -1,0 +1,234 @@
+@prefix kgc:   <https://github.com/Josie29/knowledge-graph-coach-dashboard/ns#> .
+@prefix prov:  <http://www.w3.org/ns/prov#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+#################################################################
+# KG 1 provenance application profile.
+#
+# A PROV-O specialisation that answers, for any single line of a
+# generated workout: which rule fired, which ontology concept it
+# resolved through, and which member fact triggered it. Every class
+# below is a subclass of prov:Entity, prov:Activity or prov:Agent -
+# nothing is invented where PROV-O already has a term.
+#
+# The kgc: namespace is project-local and is not intended to be
+# dereferenced. It would be replaced by a w3id.org PURL if this
+# vocabulary were ever published.
+#################################################################
+
+<https://github.com/Josie29/knowledge-graph-coach-dashboard/ns>
+    a owl:Ontology ;
+    dcterms:title "Coach Dashboard KG 1 provenance profile" ;
+    dcterms:description "PROV-O application profile recording why a workout recommendation was made." ;
+    owl:imports <http://www.w3.org/ns/prov-o#> , <http://www.w3.org/2004/02/skos/core> .
+
+#################################################################
+# Entities - domain objects
+#################################################################
+
+kgc:Exercise a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Exercise" ;
+    rdfs:comment "A catalog exercise, identified by its data/exercises.json UUID. An entity, not an activity: performing it would be the activity." .
+
+kgc:MovementPattern a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Movement pattern" ;
+    rdfs:comment "A normalised movement pattern concept carrying the biomechanical attributes the safety rules match on." .
+
+kgc:AnatomicalStructure a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Anatomical structure" ;
+    rdfs:comment "A joint, body region or muscle concept. Participates in the PART_OF partonomy." .
+
+kgc:Equipment a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Equipment" .
+
+kgc:Condition a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Injury or condition" ;
+    rdfs:comment "A clinical condition concept, normally carrying a skos:exactMatch to SNOMED CT." .
+
+kgc:SafetyRule a owl:Class ;
+    rdfs:subClassOf prov:Plan ;
+    rdfs:label "Safety rule" ;
+    rdfs:comment "A contraindication or allowance rule. Typed as prov:Plan so that a screening activity can cite it through prov:qualifiedAssociation / prov:hadPlan - the rule is literally the plan the screening agent followed." .
+
+kgc:MemberFact a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Member fact" ;
+    rdfs:comment "One atomic assertion drawn from KG 2 (an injury record, an equipment item, a stated dislike, an adherence figure). The join point between the two graphs: KG 1 reasoning consumes member facts and never reads member JSON directly." .
+
+kgc:CoachRequest a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Coach request" ;
+    rdfs:comment "The free-text prompt plus time window submitted from the dashboard." .
+
+kgc:ConceptMatch a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Concept match" ;
+    rdfs:comment "The result of resolving one free-text span onto one canonical concept, carrying the resolver pass and confidence that produced it." .
+
+kgc:GraphPath a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Graph path" ;
+    rdfs:comment "A materialised traversal result. This is the auditable artifact that distinguishes a graph-derived decision from a prompt-derived one: the exact node sequence walked, plus the query that produced it." .
+
+kgc:ExercisePrescription a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Exercise prescription" ;
+    rdfs:comment "One line of a generated plan: an exercise with sets, reps, rest and block placement." .
+
+kgc:Exclusion a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Exclusion" ;
+    rdfs:comment "A record that a candidate exercise was removed or down-ranked, and why. Recorded as a first-class entity so the trace can show what was filtered out, not only what survived." .
+
+kgc:WorkoutPlan a owl:Class ;
+    rdfs:subClassOf prov:Collection ;
+    rdfs:label "Workout plan" ;
+    rdfs:comment "The assembled plan. A prov:Collection whose prov:hadMember values are kgc:ExercisePrescription instances." .
+
+#################################################################
+# Activities - the generation pipeline
+#################################################################
+
+kgc:WorkoutGeneration a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Workout generation" ;
+    rdfs:comment "The umbrella activity for one coach request. Informed by the four activities below via prov:wasInformedBy." .
+
+kgc:ConceptResolution a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Concept resolution" ;
+    rdfs:comment "Three-pass resolution of free text onto canonical concepts: exact, then fuzzy, then embedding." .
+
+kgc:CandidateRetrieval a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Candidate retrieval" ;
+    rdfs:comment "Traversal that gathers exercises matching the request's intent and the member's equipment." .
+
+kgc:SafetyScreening a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Safety screening" ;
+    rdfs:comment "Deterministic application of the contraindication rules over the candidate set. Emits kgc:Exclusion entities. Never performed by the language model." .
+
+kgc:PlanAssembly a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Plan assembly" ;
+    rdfs:comment "Ordering, dosing and block placement of the surviving candidates within the requested time window." .
+
+#################################################################
+# Agents
+#################################################################
+
+kgc:Coach a owl:Class ;
+    rdfs:subClassOf prov:Person ;
+    rdfs:label "Coach" ;
+    rdfs:comment "The human accountable for the plan. Every generation is prov:wasAttributedTo a coach, because the product ships coach-reviewed plans, not autonomous ones." .
+
+kgc:GeneratorAgent a owl:Class ;
+    rdfs:subClassOf prov:SoftwareAgent ;
+    rdfs:label "Generator agent" .
+
+kgc:LanguageModel a owl:Class ;
+    rdfs:subClassOf prov:SoftwareAgent ;
+    rdfs:label "Language model" ;
+    rdfs:comment "Recorded with its model id and effort setting so a trace can be replayed against the same configuration." .
+
+kgc:RuleEngine a owl:Class ;
+    rdfs:subClassOf prov:SoftwareAgent ;
+    rdfs:label "Rule engine" ;
+    rdfs:comment "The deterministic component. Safety screening is always attributed here and never to kgc:LanguageModel - that attribution split is the audit evidence that safety came from traversal." .
+
+#################################################################
+# Properties
+#################################################################
+
+kgc:justifiedBy a owl:ObjectProperty ;
+    rdfs:label "justified by" ;
+    rdfs:domain prov:Entity ;
+    rdfs:range kgc:GraphPath ;
+    rdfs:subPropertyOf prov:wasDerivedFrom ;
+    rdfs:comment "Links a prescription or exclusion to the traversal that produced it." .
+
+kgc:appliedRule a owl:ObjectProperty ;
+    rdfs:label "applied rule" ;
+    rdfs:domain kgc:Exclusion ;
+    rdfs:range kgc:SafetyRule .
+
+kgc:triggeredBy a owl:ObjectProperty ;
+    rdfs:label "triggered by" ;
+    rdfs:domain kgc:Exclusion ;
+    rdfs:range kgc:MemberFact ;
+    rdfs:comment "The member fact that made the rule applicable - the 'which member fact' half of the audit question." .
+
+kgc:resolvedTo a owl:ObjectProperty ;
+    rdfs:label "resolved to" ;
+    rdfs:domain kgc:ConceptMatch ;
+    rdfs:range skos:Concept .
+
+kgc:resolverPass a owl:DatatypeProperty ;
+    rdfs:label "resolver pass" ;
+    rdfs:domain kgc:ConceptMatch ;
+    rdfs:range xsd:string ;
+    rdfs:comment "One of exact | fuzzy | embedding | unresolved." .
+
+kgc:confidence a owl:DatatypeProperty ;
+    rdfs:label "confidence" ;
+    rdfs:domain kgc:ConceptMatch ;
+    rdfs:range xsd:decimal .
+
+kgc:sourceText a owl:DatatypeProperty ;
+    rdfs:label "source text" ;
+    rdfs:domain kgc:ConceptMatch ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The verbatim span from the coach prompt or member note that was resolved." .
+
+kgc:cypher a owl:DatatypeProperty ;
+    rdfs:label "cypher" ;
+    rdfs:domain kgc:GraphPath ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The query that produced the path, stored so a reviewer can re-run it." .
+
+kgc:pathNodes a owl:DatatypeProperty ;
+    rdfs:label "path nodes" ;
+    rdfs:domain kgc:GraphPath ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Human-readable serialisation of the walked path, e.g. 'left knee -[PART_OF]-> knee joint <-[STRESSES]- Dumbbell Goblet Split Squat'." .
+
+kgc:decision a owl:DatatypeProperty ;
+    rdfs:label "decision" ;
+    rdfs:domain kgc:Exclusion ;
+    rdfs:range xsd:string ;
+    rdfs:comment "One of exclude | downrank | allow." .
+
+kgc:severityScore a owl:DatatypeProperty ;
+    rdfs:label "severity score" ;
+    rdfs:domain kgc:Exclusion ;
+    rdfs:range xsd:decimal .
+
+kgc:substitutedFor a owl:ObjectProperty ;
+    rdfs:label "substituted for" ;
+    rdfs:domain kgc:ExercisePrescription ;
+    rdfs:range kgc:Exercise ;
+    rdfs:subPropertyOf prov:wasRevisionOf ;
+    rdfs:comment "Records that this prescription replaced an excluded exercise, e.g. a dumbbell variant standing in for a barbell one." .
+
+#################################################################
+# Usage roles - used with prov:qualifiedUsage / prov:hadRole so a
+# single activity's several inputs stay distinguishable.
+#################################################################
+
+kgc:role-injury-evidence a prov:Role ; rdfs:label "injury evidence" .
+kgc:role-equipment-profile a prov:Role ; rdfs:label "equipment profile" .
+kgc:role-stated-preference a prov:Role ; rdfs:label "stated preference" .
+kgc:role-training-history a prov:Role ; rdfs:label "training history" .
+kgc:role-coach-instruction a prov:Role ; rdfs:label "coach instruction" .
+kgc:role-ontology-grounding a prov:Role ; rdfs:label "ontology grounding" .

@@ -1,0 +1,1824 @@
+{
+  "vocabulary": "movement_pattern",
+  "source_field": "movement_patterns",
+  "source_file": "data/exercises.json",
+  "distinct_terms": 36,
+  "namespaces": "./namespaces.json",
+  "description": "The 36 distinct movement_patterns strings, normalised into a faceted taxonomy and annotated with the biomechanical attributes the contraindication rules match on. See docs/kg1-schema.md for the reasoning.",
+  "facet_vocabulary": {
+    "movement_pattern": "A true movement pattern: a category + subtype describing what the body does (upper push - horizontal, lower push - squat).",
+    "contraction_mode": "How the muscle contracts, orthogonal to the pattern (isometric).",
+    "position": "The base position the work is performed from (quadruped).",
+    "modality": "A training modality or method rather than a pattern (yoga, massage, car).",
+    "session_role": "The role the block plays in a session (cardio, regen).",
+    "scope": "How much of the body is involved (total body).",
+    "quality": "A motor quality being trained (balance)."
+  },
+  "mechanics_vocabulary": {
+    "impact": [
+      "none",
+      "low",
+      "moderate",
+      "high"
+    ],
+    "kinetic_chain": [
+      "open",
+      "closed",
+      "mixed",
+      "not_applicable"
+    ],
+    "external_load_typical": "boolean - is the pattern normally performed with added external load",
+    "axial_spinal_load": [
+      "none",
+      "light",
+      "moderate",
+      "heavy"
+    ],
+    "knee_flexion_demand": [
+      "none",
+      "shallow",
+      "moderate",
+      "deep"
+    ],
+    "spinal_flexion_demand": [
+      "none",
+      "low",
+      "moderate",
+      "high"
+    ],
+    "spinal_rotation_demand": [
+      "none",
+      "low",
+      "moderate",
+      "high"
+    ],
+    "overhead_shoulder_demand": [
+      "none",
+      "partial",
+      "full"
+    ],
+    "end_range_rom": "boolean - does the pattern deliberately take a joint to end range",
+    "unilateral_lower_limb": "boolean - is load borne on one leg at a time",
+    "is_therapeutic": "boolean - the pattern's purpose is mobility, recovery or tissue work, not loading"
+  },
+  "ontology_grounding": {
+    "headline": "3 of 36 patterns reach a skos:exactMatch. 27 carry only a skos:broader link, 2 a closeMatch, 3 an associative link alone, and 2 nothing at all. 6 carry an explicit declined-mapping record.",
+    "why": "Movement pattern is the axis published ontologies cover worst. OPE's complete exercise taxonomy is eight NCIT classes - four contraction modes and four intensity bands - and contains no squat, lunge, press, pull, hinge, carry or jump. COPPER's activity list is sport and household categories (Running, Yoga, Vacuuming), a granularity coarser than a gym movement. The pattern vocabulary is therefore necessarily project-minted, with published concepts attached above it rather than under it.",
+    "exact_matches": [
+      "mp_isometric -> ncit:Isometric_Exercise",
+      "mp_yoga -> copper:1017 Yoga",
+      "mp_mobility_static -> copper:1041 Stretching"
+    ],
+    "most_important_gap": "mp_cardio_plyometric. See its declined record."
+  },
+  "concepts": [
+    {
+      "id": "mp_upper_push_horizontal",
+      "catalog_term": "upper push - horizontal",
+      "pref_label": "Horizontal upper-body push",
+      "alt_labels": [
+        "press",
+        "bench press",
+        "push-up",
+        "horizontal press"
+      ],
+      "facet": "movement_pattern",
+      "category": "upper push",
+      "subtype": "horizontal",
+      "exercise_count": 5,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_upper_push_vertical",
+      "catalog_term": "upper push - vertical",
+      "pref_label": "Vertical upper-body push",
+      "alt_labels": [
+        "overhead press",
+        "shoulder press",
+        "military press"
+      ],
+      "facet": "movement_pattern",
+      "category": "upper push",
+      "subtype": "vertical",
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "open",
+        "external_load_typical": true,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "full",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_upper_pull_horizontal",
+      "catalog_term": "upper pull - horizontal",
+      "pref_label": "Horizontal upper-body pull",
+      "alt_labels": [
+        "row",
+        "rowing"
+      ],
+      "facet": "movement_pattern",
+      "category": "upper pull",
+      "subtype": "horizontal",
+      "exercise_count": 2,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "open",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_upper_pull_vertical",
+      "catalog_term": "upper pull - vertical",
+      "pref_label": "Vertical upper-body pull",
+      "alt_labels": [
+        "pull-up",
+        "chin-up",
+        "lat pulldown"
+      ],
+      "facet": "movement_pattern",
+      "category": "upper pull",
+      "subtype": "vertical",
+      "exercise_count": 4,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "full",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_upper_adduction",
+      "catalog_term": "upper - adduction",
+      "pref_label": "Upper-limb adduction",
+      "alt_labels": [
+        "chest fly",
+        "horizontal shoulder adduction"
+      ],
+      "facet": "movement_pattern",
+      "category": "upper",
+      "subtype": "adduction",
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "open",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "partial",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_lower_push_squat",
+      "catalog_term": "lower push - squat",
+      "pref_label": "Squat",
+      "alt_labels": [
+        "squat",
+        "goblet squat",
+        "squatting"
+      ],
+      "facet": "movement_pattern",
+      "category": "lower push",
+      "subtype": "squat",
+      "exercise_count": 3,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "closed",
+        "external_load_typical": true,
+        "axial_spinal_load": "moderate",
+        "knee_flexion_demand": "deep",
+        "spinal_flexion_demand": "low",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_lower_push_split_squat",
+      "catalog_term": "lower push - split squat",
+      "pref_label": "Split squat",
+      "alt_labels": [
+        "split squat",
+        "rear-foot elevated split squat",
+        "bulgarian split squat"
+      ],
+      "facet": "movement_pattern",
+      "category": "lower push",
+      "subtype": "split squat",
+      "exercise_count": 3,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "closed",
+        "external_load_typical": true,
+        "axial_spinal_load": "moderate",
+        "knee_flexion_demand": "deep",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": true,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_lower_push_lunge",
+      "catalog_term": "lower push - lunge",
+      "pref_label": "Lunge",
+      "alt_labels": [
+        "lunge",
+        "forward lunge",
+        "reverse lunge",
+        "crossback lunge"
+      ],
+      "facet": "movement_pattern",
+      "category": "lower push",
+      "subtype": "lunge",
+      "exercise_count": 2,
+      "mechanics": {
+        "impact": "low",
+        "kinetic_chain": "closed",
+        "external_load_typical": true,
+        "axial_spinal_load": "moderate",
+        "knee_flexion_demand": "deep",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": true,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_lower_push_step_up",
+      "catalog_term": "lower push - step-up",
+      "pref_label": "Step-up",
+      "alt_labels": [
+        "step-up",
+        "box step up"
+      ],
+      "facet": "movement_pattern",
+      "category": "lower push",
+      "subtype": "step-up",
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "low",
+        "kinetic_chain": "closed",
+        "external_load_typical": true,
+        "axial_spinal_load": "moderate",
+        "knee_flexion_demand": "moderate",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": true,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_lower_push_calf_raise",
+      "catalog_term": "lower push - calf raise",
+      "pref_label": "Calf raise",
+      "alt_labels": [
+        "calf raise",
+        "heel raise",
+        "plantarflexion"
+      ],
+      "facet": "movement_pattern",
+      "category": "lower push",
+      "subtype": "calf raise",
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "closed",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_lower_pull_hip_lift",
+      "catalog_term": "lower pull - hip lift",
+      "pref_label": "Hip lift / hip hinge",
+      "alt_labels": [
+        "hip lift",
+        "hip thrust",
+        "bridge",
+        "hinge",
+        "deadlift",
+        "romanian deadlift",
+        "RDL",
+        "good morning"
+      ],
+      "alt_label_note": "'deadlift' is listed here deliberately. The sample member dislikes 'Deadlift', a string that matches no exercise name in the catalog - so a literal exclusion is a no-op. Routing the dislike through this pattern concept is what turns it into a real filter.",
+      "facet": "movement_pattern",
+      "category": "lower pull",
+      "subtype": "hip lift",
+      "exercise_count": 2,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "closed",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "moderate",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "notes": "Low patellofemoral joint stress despite loading the knee - the hip extensors do the work and the knee stays out of loaded deep flexion. This is why a joints_loaded-only filter wrongly excludes it for a patellofemoral case.",
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_lower_abduction",
+      "catalog_term": "lower - abduction",
+      "pref_label": "Lower-limb abduction",
+      "alt_labels": [
+        "hip abduction",
+        "lateral walk"
+      ],
+      "facet": "movement_pattern",
+      "category": "lower",
+      "subtype": "abduction",
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "shallow",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "notes": "Hip abduction work is a first-line rehab pattern for patellofemoral pain (gluteus medius strengthening), so the contraindication layer explicitly allows it rather than merely not excluding it.",
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_lower_adduction",
+      "catalog_term": "lower - adduction",
+      "pref_label": "Lower-limb adduction",
+      "alt_labels": [
+        "hip adduction",
+        "copenhagen"
+      ],
+      "facet": "movement_pattern",
+      "category": "lower",
+      "subtype": "adduction",
+      "exercise_count": 2,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "shallow",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_legs_accessory",
+      "catalog_term": "legs - accessory",
+      "pref_label": "Lower-limb accessory work",
+      "alt_labels": [
+        "leg accessory",
+        "hamstring accessory"
+      ],
+      "facet": "movement_pattern",
+      "category": "legs",
+      "subtype": "accessory",
+      "exercise_count": 2,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "moderate",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_arms_accessory",
+      "catalog_term": "arms - accessory",
+      "pref_label": "Upper-limb accessory work",
+      "alt_labels": [
+        "arm accessory",
+        "curl",
+        "tricep extension"
+      ],
+      "facet": "movement_pattern",
+      "category": "arms",
+      "subtype": "accessory",
+      "exercise_count": 6,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "open",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_shoulders_accessory",
+      "catalog_term": "shoulders - accessory",
+      "pref_label": "Shoulder accessory work",
+      "alt_labels": [
+        "shoulder accessory",
+        "YTI",
+        "rotator cuff work"
+      ],
+      "facet": "movement_pattern",
+      "category": "shoulders",
+      "subtype": "accessory",
+      "exercise_count": 2,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "open",
+        "external_load_typical": true,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "partial",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_core_anti_extension",
+      "catalog_term": "core - anti-extension",
+      "pref_label": "Core anti-extension",
+      "alt_labels": [
+        "plank",
+        "anti-extension"
+      ],
+      "facet": "movement_pattern",
+      "category": "core",
+      "subtype": "anti-extension",
+      "exercise_count": 4,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "closed",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isometric_Exercise",
+          "target_label": "Isometric Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_core_anti_lateral_flexion",
+      "catalog_term": "core - anti-lateral flexion",
+      "pref_label": "Core anti-lateral-flexion",
+      "alt_labels": [
+        "side plank",
+        "suitcase hold"
+      ],
+      "facet": "movement_pattern",
+      "category": "core",
+      "subtype": "anti-lateral flexion",
+      "exercise_count": 2,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "closed",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isometric_Exercise",
+          "target_label": "Isometric Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_core_anti_rotation",
+      "catalog_term": "core - anti-rotation",
+      "pref_label": "Core anti-rotation",
+      "alt_labels": [
+        "pallof press",
+        "anti-rotation"
+      ],
+      "facet": "movement_pattern",
+      "category": "core",
+      "subtype": "anti-rotation",
+      "exercise_count": 3,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "shallow",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isometric_Exercise",
+          "target_label": "Isometric Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_core_flexion",
+      "catalog_term": "core - flexion",
+      "pref_label": "Loaded trunk flexion",
+      "alt_labels": [
+        "crunch",
+        "sit-up",
+        "knee drive",
+        "trunk flexion"
+      ],
+      "facet": "movement_pattern",
+      "category": "core",
+      "subtype": "flexion",
+      "exercise_count": 3,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "shallow",
+        "spinal_flexion_demand": "high",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_core_extension",
+      "catalog_term": "core - extension",
+      "pref_label": "Trunk extension",
+      "alt_labels": [
+        "back extension",
+        "trunk extension"
+      ],
+      "facet": "movement_pattern",
+      "category": "core",
+      "subtype": "extension",
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "open",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_core_rotation",
+      "catalog_term": "core - rotation",
+      "pref_label": "Loaded trunk rotation",
+      "alt_labels": [
+        "rotational lift",
+        "chop",
+        "twist"
+      ],
+      "facet": "movement_pattern",
+      "category": "core",
+      "subtype": "rotation",
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "open",
+        "external_load_typical": true,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "low",
+        "spinal_rotation_demand": "high",
+        "overhead_shoulder_demand": "partial",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_core_carry",
+      "catalog_term": "core - carry",
+      "pref_label": "Loaded carry",
+      "alt_labels": [
+        "carry",
+        "farmer carry",
+        "zercher carry"
+      ],
+      "facet": "movement_pattern",
+      "category": "core",
+      "subtype": "carry",
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "low",
+        "kinetic_chain": "closed",
+        "external_load_typical": true,
+        "axial_spinal_load": "heavy",
+        "knee_flexion_demand": "shallow",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Isotonic_Exercise",
+          "target_label": "Isotonic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "copper:1005",
+          "target_label": "Resistance Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StrengthFitnessHealthOutcome",
+          "target_label": "StrengthFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The outcome the pattern trains. OPE models fitness outcomes but not movement patterns, so this is an associative link, not a classification."
+        }
+      ]
+    },
+    {
+      "id": "mp_cardio_plyometric",
+      "catalog_term": "cardio - plyometric",
+      "pref_label": "Plyometric",
+      "alt_labels": [
+        "plyometric",
+        "plyo",
+        "jump",
+        "jumping",
+        "high impact",
+        "burpee",
+        "burpees",
+        "box jump"
+      ],
+      "alt_label_note": "'burpees' is the member's second stated dislike and, like 'Deadlift', matches no catalog exercise name. It resolves here instead.",
+      "facet": "movement_pattern",
+      "category": "cardio",
+      "subtype": "plyometric",
+      "exercise_count": 6,
+      "mechanics": {
+        "impact": "high",
+        "kinetic_chain": "closed",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "moderate",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "notes": "The single highest-value contraindication hook in the catalog. Ground-reaction forces at landing are the mechanism named in the member's injury note ('avoid plyometrics'), and this attribute is what lets a rule fire on it.",
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Strenuous_Exercise",
+          "target_label": "Strenuous Exercise",
+          "confidence": "low",
+          "via": "OPE",
+          "note": "An intensity band, not a movement category. Retained only so the concept is not orphaned; never used as a rule predicate."
+        },
+        {
+          "predicate": "skos:related",
+          "target": "copper:1013",
+          "target_label": "Ropeskipping",
+          "confidence": "medium",
+          "via": "COPPER",
+          "note": "The single COPPER activity that is reliably plyometric. Associative only - most plyometric work in this catalog is not rope skipping."
+        }
+      ],
+      "declined": [
+        {
+          "vocabulary": "OPE / NCIT / COPPER / SNOMED CT",
+          "reason": "No published ontology in scope has a concept for plyometric or impact-loading exercise. OPE's entire exercise taxonomy is eight classes covering contraction mode and intensity; COPPER's activities are sport and household categories. This is the most consequential gap found in the whole curation: 'avoid plyometrics' is the explicit instruction in the member's injury note, so the concept the safety layer most needs is the one no ontology supplies. It is therefore minted as kgc:mp_cardio_plyometric and carries its own mechanics attributes."
+        }
+      ]
+    },
+    {
+      "id": "mp_cardio_locomotion",
+      "catalog_term": "cardio - locomotion",
+      "pref_label": "Locomotive conditioning",
+      "alt_labels": [
+        "locomotion",
+        "walking",
+        "climbing",
+        "erg"
+      ],
+      "facet": "movement_pattern",
+      "category": "cardio",
+      "subtype": "locomotion",
+      "exercise_count": 3,
+      "mechanics": {
+        "impact": "low",
+        "kinetic_chain": "closed",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "moderate",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": true,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Aerobic_Exercise",
+          "target_label": "Aerobic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StaminaFitnessHealthOutcome",
+          "target_label": "StaminaFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "copper:1020",
+          "target_label": "Walking",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "copper:1011",
+          "target_label": "Running",
+          "confidence": "high",
+          "via": "COPPER"
+        }
+      ]
+    },
+    {
+      "id": "mp_cardio",
+      "catalog_term": "cardio",
+      "pref_label": "Cardiovascular conditioning",
+      "alt_labels": [
+        "cardio",
+        "conditioning",
+        "aerobic",
+        "endurance"
+      ],
+      "facet": "session_role",
+      "category": null,
+      "subtype": null,
+      "exercise_count": 8,
+      "mechanics": {
+        "impact": "moderate",
+        "kinetic_chain": "mixed",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "moderate",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "notes": "Bare 'cardio' co-occurs with a more specific cardio subtype on all 8 exercises that carry it (6 plyometric, 3 locomotion, overlapping). Treated as a session-role facet, not a pattern: rules must never fire on 'cardio' alone or they would ban the SkiErg alongside the jumps.",
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Aerobic_Exercise",
+          "target_label": "Aerobic Exercise",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:closeMatch",
+          "target": "copper:1169",
+          "target_label": "Cardio Training",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:StaminaFitnessHealthOutcome",
+          "target_label": "StaminaFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "mp_mobility_dynamic",
+      "catalog_term": "mobility - dynamic",
+      "pref_label": "Dynamic mobility",
+      "alt_labels": [
+        "dynamic stretch",
+        "dynamic mobility",
+        "movement prep"
+      ],
+      "facet": "movement_pattern",
+      "category": "mobility",
+      "subtype": "dynamic",
+      "exercise_count": 5,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": false,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "moderate",
+        "spinal_flexion_demand": "low",
+        "spinal_rotation_demand": "low",
+        "overhead_shoulder_demand": "partial",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": true
+      },
+      "mappings": [
+        {
+          "predicate": "skos:closeMatch",
+          "target": "copper:1041",
+          "target_label": "Stretching",
+          "confidence": "medium",
+          "via": "COPPER",
+          "note": "COPPER does not distinguish dynamic from static stretching. Recorded as closeMatch so the distinction stays visible locally without asserting a difference COPPER cannot express."
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:FlexibilityFitnessHealthOutcome",
+          "target_label": "FlexibilityFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "mp_mobility_static",
+      "catalog_term": "mobility - static",
+      "pref_label": "Static mobility",
+      "alt_labels": [
+        "static stretch",
+        "stretching",
+        "hold"
+      ],
+      "facet": "movement_pattern",
+      "category": "mobility",
+      "subtype": "static",
+      "exercise_count": 2,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": false,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "moderate",
+        "spinal_flexion_demand": "low",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": true
+      },
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "copper:1041",
+          "target_label": "Stretching",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:FlexibilityFitnessHealthOutcome",
+          "target_label": "FlexibilityFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "mp_car",
+      "catalog_term": "car",
+      "pref_label": "Controlled articular rotation",
+      "alt_labels": [
+        "CAR",
+        "CARs",
+        "controlled articular rotation",
+        "joint circle"
+      ],
+      "facet": "modality",
+      "category": null,
+      "subtype": null,
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "open",
+        "external_load_typical": false,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "shallow",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": true,
+        "unilateral_lower_limb": true,
+        "is_therapeutic": true
+      },
+      "notes": "Data quirk. The catalog string is the bare token 'car' on Standing Miniband Hip Flexion - a truncated 'CARs' (Controlled Articular Rotations), not a vehicle. Normalised here by hand precisely so the embedding fallback in the concept resolver never sees the raw token and lands it near 'automobile'.",
+      "mappings": [
+        {
+          "predicate": "skos:related",
+          "target": "ope:FlexibilityFitnessHealthOutcome",
+          "target_label": "FlexibilityFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ],
+      "declined": [
+        {
+          "vocabulary": "OPE / NCIT / COPPER",
+          "reason": "Controlled Articular Rotations are a training method from the mobility field with no representation in any published ontology. Minted locally. The catalog string is also corrupt ('car'), so this concept exists partly to stop a broken token from reaching the embedding resolver."
+        }
+      ]
+    },
+    {
+      "id": "mp_regen",
+      "catalog_term": "regen",
+      "pref_label": "Regeneration / recovery work",
+      "alt_labels": [
+        "regen",
+        "recovery",
+        "cooldown",
+        "restoration"
+      ],
+      "facet": "session_role",
+      "category": null,
+      "subtype": null,
+      "exercise_count": 6,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": false,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "moderate",
+        "spinal_flexion_demand": "low",
+        "spinal_rotation_demand": "low",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": true
+      },
+      "notes": "Session-role facet, not a pattern. is_therapeutic on this facet is what rescues Cow Pose and World's Greatest Stretch from a naive knee-injury exclusion.",
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ncit:Very_Light_Exercise",
+          "target_label": "Very Light Exercise",
+          "confidence": "low",
+          "via": "OPE",
+          "note": "Intensity band only. Low confidence, display and traversal use only."
+        }
+      ],
+      "declined": [
+        {
+          "vocabulary": "COPPER",
+          "reason": "COPPER models recovery as behaviour-change techniques (copper:4042 advice to take breaks, copper:4049 appropriate sleep), not as a category of activity. Neither is the same thing as a regeneration block inside a session."
+        }
+      ]
+    },
+    {
+      "id": "mp_massage",
+      "catalog_term": "massage",
+      "pref_label": "Soft-tissue work",
+      "alt_labels": [
+        "massage",
+        "myofascial release",
+        "trigger point",
+        "foam roll"
+      ],
+      "facet": "modality",
+      "category": null,
+      "subtype": null,
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "not_applicable",
+        "external_load_typical": false,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "none",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": true
+      },
+      "mappings": [
+        {
+          "predicate": "skos:related",
+          "target": "copper:4048",
+          "target_label": "non-pharmaceutical pain management BCT",
+          "confidence": "medium",
+          "via": "COPPER",
+          "note": "The nearest published concept, and it is a behaviour-change technique rather than an exercise type."
+        }
+      ],
+      "declined": [
+        {
+          "vocabulary": "OPE / NCIT",
+          "reason": "Soft-tissue work is not exercise under OPE's model. SNOMED CT has massage *procedures*, but importing a procedure concept into an exercise vocabulary would confuse the type system for no reasoning gain."
+        }
+      ]
+    },
+    {
+      "id": "mp_yoga",
+      "catalog_term": "yoga",
+      "pref_label": "Yoga",
+      "alt_labels": [
+        "yoga",
+        "asana"
+      ],
+      "facet": "modality",
+      "category": null,
+      "subtype": null,
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "closed",
+        "external_load_typical": false,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "moderate",
+        "spinal_flexion_demand": "moderate",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": true,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": true
+      },
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "copper:1017",
+          "target_label": "Yoga",
+          "confidence": "high",
+          "via": "COPPER"
+        },
+        {
+          "predicate": "skos:related",
+          "target": "ope:FlexibilityFitnessHealthOutcome",
+          "target_label": "FlexibilityFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "mp_isometric",
+      "catalog_term": "isometric",
+      "pref_label": "Isometric contraction",
+      "alt_labels": [
+        "isometric",
+        "static hold",
+        "hold"
+      ],
+      "facet": "contraction_mode",
+      "category": null,
+      "subtype": null,
+      "exercise_count": 3,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "mixed",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "shallow",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "notes": "Contraction mode, orthogonal to the pattern. Clinically relevant in its own right: isometric loading is a standard analgesic entry point for tendinopathy, so this facet is a down-rank protector rather than a risk flag.",
+      "mappings": [
+        {
+          "predicate": "skos:exactMatch",
+          "target": "ncit:Isometric_Exercise",
+          "target_label": "Isometric Exercise",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "The cleanest exact match in this file. Contraction mode is precisely what OPE's imported exercise taxonomy encodes."
+        }
+      ]
+    },
+    {
+      "id": "mp_balance",
+      "catalog_term": "balance",
+      "pref_label": "Balance / postural control",
+      "alt_labels": [
+        "balance",
+        "stability",
+        "proprioception"
+      ],
+      "facet": "quality",
+      "category": null,
+      "subtype": null,
+      "exercise_count": 2,
+      "mechanics": {
+        "impact": "low",
+        "kinetic_chain": "closed",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "shallow",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": true,
+        "is_therapeutic": false
+      },
+      "mappings": [
+        {
+          "predicate": "skos:related",
+          "target": "ope:BalanceFitnessHealthOutcome",
+          "target_label": "BalanceFitnessHealthOutcome",
+          "confidence": "high",
+          "via": "OPE",
+          "note": "OPE has balance as a fitness *outcome*, not as a movement quality. Associative link - the outcome this pattern develops."
+        }
+      ]
+    },
+    {
+      "id": "mp_quadruped",
+      "catalog_term": "quadruped",
+      "pref_label": "Quadruped position",
+      "alt_labels": [
+        "quadruped",
+        "all fours",
+        "hands and knees"
+      ],
+      "facet": "position",
+      "category": null,
+      "subtype": null,
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "none",
+        "kinetic_chain": "closed",
+        "external_load_typical": false,
+        "axial_spinal_load": "none",
+        "knee_flexion_demand": "deep",
+        "spinal_flexion_demand": "none",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "none",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "notes": "Position facet. Carries deep knee flexion but with body weight on the shins, not through the patellofemoral joint - the reason the contraindication rules test knee_flexion_demand together with external_load_typical and kinetic_chain rather than knee flexion alone.",
+      "mappings": [],
+      "declined": [
+        {
+          "vocabulary": "all",
+          "reason": "Body position is not modelled by any ontology in scope. SNOMED CT has patient-position concepts, but those describe clinical positioning, not exercise stance, and importing them would create a false equivalence."
+        }
+      ]
+    },
+    {
+      "id": "mp_total_body",
+      "catalog_term": "total body",
+      "pref_label": "Total-body movement",
+      "alt_labels": [
+        "total body",
+        "full body",
+        "whole body"
+      ],
+      "facet": "scope",
+      "category": null,
+      "subtype": null,
+      "exercise_count": 1,
+      "mechanics": {
+        "impact": "low",
+        "kinetic_chain": "mixed",
+        "external_load_typical": false,
+        "axial_spinal_load": "light",
+        "knee_flexion_demand": "shallow",
+        "spinal_flexion_demand": "low",
+        "spinal_rotation_demand": "none",
+        "overhead_shoulder_demand": "partial",
+        "end_range_rom": false,
+        "unilateral_lower_limb": false,
+        "is_therapeutic": false
+      },
+      "mappings": [],
+      "declined": [
+        {
+          "vocabulary": "all",
+          "reason": "A scope annotation, not a concept. Nothing to map; nothing lost by not mapping it."
+        }
+      ]
+    }
+  ]
+}

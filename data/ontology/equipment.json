@@ -1,0 +1,1158 @@
+{
+  "vocabulary": "equipment",
+  "source_field": "equipment_required",
+  "source_file": "data/exercises.json",
+  "distinct_terms": 32,
+  "namespaces": "./namespaces.json",
+  "description": "The 32 distinct equipment_required strings, classified and linked by a substitution graph. The substitution edges are what let the generator answer 'she has no barbell, only dumbbells and a kettlebell' with equivalents rather than an empty plan.",
+  "class_vocabulary": {
+    "free_weight": "Unfixed external load held or racked by the user.",
+    "machine": "Fixed-path or cable-guided resistance machine, or an ergometer.",
+    "band": "Elastic resistance.",
+    "support_surface": "A bench, box, ball or mat that positions the body rather than resisting it.",
+    "implement": "A ballistic or carried object.",
+    "suspension": "Bodyweight suspended from an anchor.",
+    "fixture": "Fixed environmental structure.",
+    "soft_tissue_tool": "Tool for myofascial / soft-tissue work."
+  },
+  "substitution_semantics": {
+    "predicate": "SUBSTITUTABLE_FOR",
+    "degree": {
+      "equivalent": "Swap changes nothing meaningful about the stimulus or the safety profile.",
+      "close": "Same pattern trainable, minor change to load range, stability demand or grip.",
+      "partial": "Only some of the source equipment's uses are covered; the generator must re-check the exercise's pattern."
+    },
+    "note": "Directional. 'A SUBSTITUTABLE_FOR B' means A can stand in for B. Not automatically symmetric: a dumbbell substitutes for a barbell at moderate loads, but a barbell is a poor substitute for a dumbbell in a unilateral exercise."
+  },
+  "ontology_grounding": {
+    "headline": "0 of 32 equipment terms have an exact match in any published ontology. 31 of 32 carry a skos:broader link to an OPE category; 1 (Wall) is declined outright.",
+    "why": "OPE models equipment as eight abstract categories and ships zero named individuals - there is no Dumbbell, Barbell, Kettlebell, bench, band, mat or machine class anywhere in it. Verified by enumerating all 634 OPE classes and grepping the downloaded OWL. COPPER is the same story from the other direction: it declares an abstract copper:1058 Equipment class reached through copper:1061 needsEquipment, with no concrete gym implements.",
+    "consequence": "The equipment nodes themselves are minted in the kgc: namespace. The ontologies contribute the category above each node and the property that attaches it to an exercise (ope:utilizesEquipment), not the node.",
+    "ope_categories_used": [
+      "ope:ConsumerEquipment",
+      "ope:WieldedPersonalGearEquipment",
+      "ope:StationaryMachineEquipment"
+    ],
+    "ope_categories_unused": {
+      "ope:RegulatedEquipment": "Nothing in a home or commercial gym catalog is regulated medical equipment.",
+      "ope:WearablePersonalGearEquipment": "No wearable appears in the catalog.",
+      "ope:MonitorEquipment": "No heart-rate strap, watch or sensor appears in the catalog. Would become relevant if biomarker capture were modelled."
+    }
+  },
+  "concepts": [
+    {
+      "id": "eq_barbell",
+      "catalog_term": "Barbell",
+      "pref_label": "Barbell",
+      "alt_labels": [
+        "barbell",
+        "bar",
+        "olympic bar"
+      ],
+      "equipment_class": "free_weight",
+      "home_gym_typical": false,
+      "exercise_count": 3,
+      "substitutable_for": [],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_dumbbell",
+      "catalog_term": "Dumbbell",
+      "pref_label": "Dumbbell",
+      "alt_labels": [
+        "dumbbell",
+        "dumbbells",
+        "DB",
+        "free weight"
+      ],
+      "equipment_class": "free_weight",
+      "home_gym_typical": true,
+      "exercise_count": 9,
+      "substitutable_for": [
+        {
+          "target": "eq_barbell",
+          "degree": "close",
+          "note": "Same patterns at lower absolute load; unilateral loading changes the stability demand."
+        },
+        {
+          "target": "eq_kettlebell",
+          "degree": "close"
+        },
+        {
+          "target": "eq_ez_bar",
+          "degree": "close"
+        },
+        {
+          "target": "eq_medicine_ball",
+          "degree": "partial",
+          "note": "Covers held-load use, not ballistic throwing."
+        },
+        {
+          "target": "eq_plate",
+          "degree": "close"
+        },
+        {
+          "target": "eq_sandbag",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_kettlebell",
+      "catalog_term": "Kettlebell",
+      "pref_label": "Kettlebell",
+      "alt_labels": [
+        "kettlebell",
+        "KB",
+        "bell"
+      ],
+      "equipment_class": "free_weight",
+      "home_gym_typical": true,
+      "exercise_count": 2,
+      "substitutable_for": [
+        {
+          "target": "eq_dumbbell",
+          "degree": "close"
+        },
+        {
+          "target": "eq_barbell",
+          "degree": "partial",
+          "note": "Goblet-position loading only; no heavy racked or back-loaded work."
+        },
+        {
+          "target": "eq_medicine_ball",
+          "degree": "close"
+        },
+        {
+          "target": "eq_plate",
+          "degree": "close"
+        },
+        {
+          "target": "eq_sandbag",
+          "degree": "close"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_ez_bar",
+      "catalog_term": "EZ Bar",
+      "pref_label": "EZ curl bar",
+      "alt_labels": [
+        "EZ bar",
+        "EZ curl bar",
+        "cambered bar"
+      ],
+      "equipment_class": "free_weight",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_barbell",
+          "degree": "close",
+          "note": "Angled grip is easier on the wrist; relevant when a wrist condition is active."
+        },
+        {
+          "target": "eq_dumbbell",
+          "degree": "close"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_plate",
+      "catalog_term": "Plate",
+      "pref_label": "Weight plate",
+      "alt_labels": [
+        "plate",
+        "weight plate",
+        "bumper plate"
+      ],
+      "equipment_class": "free_weight",
+      "home_gym_typical": false,
+      "exercise_count": 3,
+      "substitutable_for": [
+        {
+          "target": "eq_dumbbell",
+          "degree": "partial"
+        },
+        {
+          "target": "eq_medicine_ball",
+          "degree": "close"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_sandbag",
+      "catalog_term": "Sandbag",
+      "pref_label": "Sandbag",
+      "alt_labels": [
+        "sandbag",
+        "sand bag"
+      ],
+      "equipment_class": "free_weight",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_barbell",
+          "degree": "partial",
+          "note": "Carries and Zercher positions only."
+        },
+        {
+          "target": "eq_kettlebell",
+          "degree": "close"
+        },
+        {
+          "target": "eq_dumbbell",
+          "degree": "close"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_medicine_ball",
+      "catalog_term": "Medicine Ball",
+      "pref_label": "Medicine ball",
+      "alt_labels": [
+        "medicine ball",
+        "med ball",
+        "wall ball"
+      ],
+      "equipment_class": "implement",
+      "home_gym_typical": true,
+      "exercise_count": 3,
+      "substitutable_for": [
+        {
+          "target": "eq_kettlebell",
+          "degree": "close"
+        },
+        {
+          "target": "eq_dumbbell",
+          "degree": "partial"
+        },
+        {
+          "target": "eq_plate",
+          "degree": "close"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_resistance_band_loop",
+      "catalog_term": "Resistance Band - Loop",
+      "pref_label": "Loop resistance band",
+      "alt_labels": [
+        "loop band",
+        "resistance band",
+        "band",
+        "superband"
+      ],
+      "equipment_class": "band",
+      "home_gym_typical": true,
+      "exercise_count": 3,
+      "substitutable_for": [
+        {
+          "target": "eq_resistance_band_handles",
+          "degree": "close"
+        },
+        {
+          "target": "eq_miniband",
+          "degree": "close"
+        },
+        {
+          "target": "eq_cable_machine",
+          "degree": "close",
+          "note": "Reproduces the cable's line of pull at the cost of a variable resistance curve."
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_resistance_band_handles",
+      "catalog_term": "Resistance Band - With Handles",
+      "pref_label": "Resistance band with handles",
+      "alt_labels": [
+        "band with handles",
+        "tube band",
+        "handled band"
+      ],
+      "equipment_class": "band",
+      "home_gym_typical": true,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_resistance_band_loop",
+          "degree": "close"
+        },
+        {
+          "target": "eq_cable_machine",
+          "degree": "close"
+        },
+        {
+          "target": "eq_handle_attachment",
+          "degree": "equivalent"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_miniband",
+      "catalog_term": "Miniband",
+      "pref_label": "Mini band",
+      "alt_labels": [
+        "miniband",
+        "mini band",
+        "hip circle",
+        "glute band"
+      ],
+      "equipment_class": "band",
+      "home_gym_typical": true,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_resistance_band_loop",
+          "degree": "close"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_flat_bench",
+      "catalog_term": "Flat Bench",
+      "pref_label": "Flat bench",
+      "alt_labels": [
+        "flat bench",
+        "bench",
+        "weight bench"
+      ],
+      "equipment_class": "support_surface",
+      "home_gym_typical": true,
+      "exercise_count": 3,
+      "substitutable_for": [
+        {
+          "target": "eq_bench_incline",
+          "degree": "partial"
+        },
+        {
+          "target": "eq_bench_decline",
+          "degree": "partial"
+        },
+        {
+          "target": "eq_box",
+          "degree": "close"
+        },
+        {
+          "target": "eq_stability_ball",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_bench_incline",
+      "catalog_term": "Adjustable Bench - Incline",
+      "pref_label": "Adjustable bench, incline setting",
+      "alt_labels": [
+        "incline bench",
+        "adjustable bench"
+      ],
+      "equipment_class": "support_surface",
+      "home_gym_typical": false,
+      "exercise_count": 3,
+      "substitutable_for": [
+        {
+          "target": "eq_flat_bench",
+          "degree": "partial"
+        },
+        {
+          "target": "eq_bench_decline",
+          "degree": "close"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_bench_decline",
+      "catalog_term": "Adjustable Bench - Decline",
+      "pref_label": "Adjustable bench, decline setting",
+      "alt_labels": [
+        "decline bench",
+        "adjustable bench"
+      ],
+      "equipment_class": "support_surface",
+      "home_gym_typical": false,
+      "exercise_count": 2,
+      "substitutable_for": [
+        {
+          "target": "eq_flat_bench",
+          "degree": "partial"
+        },
+        {
+          "target": "eq_bench_incline",
+          "degree": "close"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_preacher_curl_bench",
+      "catalog_term": "Preacher Curl Bench",
+      "pref_label": "Preacher curl bench",
+      "alt_labels": [
+        "preacher bench",
+        "preacher curl bench",
+        "scott bench"
+      ],
+      "equipment_class": "support_surface",
+      "home_gym_typical": false,
+      "exercise_count": 2,
+      "substitutable_for": [
+        {
+          "target": "eq_bench_incline",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_box",
+      "catalog_term": "Box",
+      "pref_label": "Plyometric / step box",
+      "alt_labels": [
+        "box",
+        "plyo box",
+        "step"
+      ],
+      "equipment_class": "support_surface",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_flat_bench",
+          "degree": "close"
+        },
+        {
+          "target": "eq_bosu",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_yoga_mat",
+      "catalog_term": "Yoga Mat",
+      "pref_label": "Exercise mat",
+      "alt_labels": [
+        "yoga mat",
+        "mat",
+        "exercise mat"
+      ],
+      "equipment_class": "support_surface",
+      "home_gym_typical": true,
+      "exercise_count": 11,
+      "substitutable_for": [],
+      "notes": "Comfort surface, not resistance. The most common single requirement in the catalog (11 exercises) and effectively a no-op constraint - flagged so the feasibility filter can treat its absence as soft rather than hard.",
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_stability_ball",
+      "catalog_term": "Stability Ball",
+      "pref_label": "Stability ball",
+      "alt_labels": [
+        "stability ball",
+        "swiss ball",
+        "physio ball",
+        "exercise ball"
+      ],
+      "equipment_class": "support_surface",
+      "home_gym_typical": true,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_bosu",
+          "degree": "close"
+        },
+        {
+          "target": "eq_flat_bench",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_bosu",
+      "catalog_term": "BOSU",
+      "pref_label": "BOSU balance trainer",
+      "alt_labels": [
+        "BOSU",
+        "bosu ball",
+        "balance trainer"
+      ],
+      "equipment_class": "support_surface",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_stability_ball",
+          "degree": "close"
+        },
+        {
+          "target": "eq_box",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_slant_board",
+      "catalog_term": "Slant Board",
+      "pref_label": "Slant board",
+      "alt_labels": [
+        "slant board",
+        "squat wedge",
+        "heel wedge"
+      ],
+      "equipment_class": "support_surface",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_plate",
+          "degree": "close",
+          "note": "Plates under the heels are the standard field substitute for a slant board."
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_rack",
+      "catalog_term": "Rack",
+      "pref_label": "Squat / power rack",
+      "alt_labels": [
+        "rack",
+        "power rack",
+        "squat rack"
+      ],
+      "equipment_class": "fixture",
+      "home_gym_typical": false,
+      "exercise_count": 2,
+      "substitutable_for": [],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_pull_up_bar",
+      "catalog_term": "Pull-Up Bar",
+      "pref_label": "Pull-up bar",
+      "alt_labels": [
+        "pull-up bar",
+        "pullup bar",
+        "chin-up bar"
+      ],
+      "equipment_class": "fixture",
+      "home_gym_typical": true,
+      "exercise_count": 2,
+      "substitutable_for": [
+        {
+          "target": "eq_lat_pulldown_machine",
+          "degree": "close"
+        },
+        {
+          "target": "eq_suspension_trainer",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_wall",
+      "catalog_term": "Wall",
+      "pref_label": "Wall",
+      "alt_labels": [
+        "wall"
+      ],
+      "equipment_class": "fixture",
+      "home_gym_typical": true,
+      "exercise_count": 1,
+      "substitutable_for": [],
+      "notes": "Universally available. Treated as always-satisfied by the feasibility filter, like bodyweight.",
+      "mappings": [],
+      "declined": [
+        {
+          "vocabulary": "OPE",
+          "reason": "A wall is not equipment under any reading of ope:Equipment - it is a feature of the environment the exercise happens in. Mapping it to ConsumerEquipment to achieve 32/32 coverage would be exactly the forced mapping this curation is meant to avoid."
+        }
+      ]
+    },
+    {
+      "id": "eq_suspension_trainer",
+      "catalog_term": "Suspension Trainer",
+      "pref_label": "Suspension trainer",
+      "alt_labels": [
+        "suspension trainer",
+        "TRX",
+        "gymnastic straps"
+      ],
+      "equipment_class": "suspension",
+      "home_gym_typical": true,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_pull_up_bar",
+          "degree": "partial"
+        },
+        {
+          "target": "eq_resistance_band_handles",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_cable_machine",
+      "catalog_term": "Cable Resistance Machine",
+      "pref_label": "Cable resistance machine",
+      "alt_labels": [
+        "cable machine",
+        "cable",
+        "functional trainer",
+        "pulley"
+      ],
+      "equipment_class": "machine",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_resistance_band_handles",
+          "degree": "close"
+        },
+        {
+          "target": "eq_resistance_band_loop",
+          "degree": "close"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:StationaryMachineEquipment",
+          "target_label": "StationaryMachineEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_handle_attachment",
+      "catalog_term": "Handle Attachment",
+      "pref_label": "Cable handle attachment",
+      "alt_labels": [
+        "handle",
+        "handle attachment",
+        "D-handle",
+        "stirrup handle"
+      ],
+      "equipment_class": "machine",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [],
+      "notes": "An accessory to the cable machine, never a standalone requirement. Modelled as REQUIRES-dependent on eq_cable_machine so the feasibility filter does not treat it as an independent barrier.",
+      "requires": [
+        "eq_cable_machine"
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_lat_pulldown_machine",
+      "catalog_term": "Seated Lat Pulldown Machine",
+      "pref_label": "Seated lat pulldown machine",
+      "alt_labels": [
+        "lat pulldown",
+        "pulldown machine",
+        "lat machine"
+      ],
+      "equipment_class": "machine",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_pull_up_bar",
+          "degree": "close"
+        },
+        {
+          "target": "eq_resistance_band_loop",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:StationaryMachineEquipment",
+          "target_label": "StationaryMachineEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_chest_supported_row_machine",
+      "catalog_term": "Chest Supported Row Machine",
+      "pref_label": "Chest-supported row machine",
+      "alt_labels": [
+        "chest supported row",
+        "seal row machine",
+        "row machine"
+      ],
+      "equipment_class": "machine",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_bench_incline",
+          "degree": "close",
+          "note": "A dumbbell plus an incline bench reproduces the chest-supported row."
+        },
+        {
+          "target": "eq_cable_machine",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:StationaryMachineEquipment",
+          "target_label": "StationaryMachineEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_leg_press_machine",
+      "catalog_term": "Horizontal Leg Press Machine",
+      "pref_label": "Horizontal leg press machine",
+      "alt_labels": [
+        "leg press",
+        "leg press machine",
+        "horizontal leg press"
+      ],
+      "equipment_class": "machine",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:StationaryMachineEquipment",
+          "target_label": "StationaryMachineEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_stair_climber",
+      "catalog_term": "Stair Climber",
+      "pref_label": "Stair climber",
+      "alt_labels": [
+        "stair climber",
+        "stepmill",
+        "stairmaster"
+      ],
+      "equipment_class": "machine",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [
+        {
+          "target": "eq_box",
+          "degree": "partial"
+        }
+      ],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:StationaryMachineEquipment",
+          "target_label": "StationaryMachineEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_skierg",
+      "catalog_term": "SkiErg",
+      "pref_label": "SkiErg ergometer",
+      "alt_labels": [
+        "skierg",
+        "ski erg",
+        "ski ergometer"
+      ],
+      "equipment_class": "machine",
+      "home_gym_typical": false,
+      "exercise_count": 1,
+      "substitutable_for": [],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:StationaryMachineEquipment",
+          "target_label": "StationaryMachineEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_jump_rope",
+      "catalog_term": "Jump Rope",
+      "pref_label": "Jump rope",
+      "alt_labels": [
+        "jump rope",
+        "skipping rope",
+        "speed rope"
+      ],
+      "equipment_class": "implement",
+      "home_gym_typical": true,
+      "exercise_count": 1,
+      "substitutable_for": [],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    },
+    {
+      "id": "eq_lacrosse_ball",
+      "catalog_term": "Lacrosse Ball",
+      "pref_label": "Lacrosse ball",
+      "alt_labels": [
+        "lacrosse ball",
+        "massage ball",
+        "trigger point ball"
+      ],
+      "equipment_class": "soft_tissue_tool",
+      "home_gym_typical": true,
+      "exercise_count": 1,
+      "substitutable_for": [],
+      "mappings": [
+        {
+          "predicate": "skos:broader",
+          "target": "ope:WieldedPersonalGearEquipment",
+          "target_label": "WieldedPersonalGearEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        },
+        {
+          "predicate": "skos:broader",
+          "target": "ope:ConsumerEquipment",
+          "target_label": "ConsumerEquipment",
+          "confidence": "high",
+          "via": "OPE"
+        }
+      ]
+    }
+  ],
+  "bodyweight": {
+    "note": "5 exercises have an empty equipment_required array (Jumping Jack, Standing Neck Circles, Static Jump, Vertical Jump to Broad Jump, Walking Toe Touches). These are modelled as REQUIRES nothing rather than REQUIRES a synthetic 'bodyweight' node - an empty requirement set already satisfies any equipment profile, and inventing a node would mean every member profile has to be told they own it."
+  }
+}

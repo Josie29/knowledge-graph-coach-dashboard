@@ -1,0 +1,196 @@
+@prefix kgc:   <https://github.com/Josie29/knowledge-graph-coach-dashboard/ns#> .
+@prefix ex:    <https://github.com/Josie29/knowledge-graph-coach-dashboard/trace/> .
+@prefix prov:  <http://www.w3.org/ns/prov#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix snomed: <http://snomed.info/id/> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+#################################################################
+# A worked provenance trace for one real decision.
+#
+# Scenario: coach Sam asks for "lower-body strength that won't
+# aggravate her knee" for Jordan Rivera on 2026-06-04. This file
+# records why ONE exercise was excluded and ONE was prescribed in
+# its place, using the profile in prov-model.ttl.
+#
+# Everything here is derived from the shipped synthetic data. The
+# exercise UUIDs are the real ones in data/exercises.json.
+#
+# This is illustrative, hand-written output. The build script emits
+# the same shape at runtime.
+#################################################################
+
+### The request ################################################
+
+ex:req-001 a kgc:CoachRequest ;
+    rdfs:label "lower-body strength that won't aggravate her knee" ;
+    kgc:sourceText "lower-body strength that won't aggravate her knee" ;
+    prov:wasAttributedTo ex:coach-sam ;
+    prov:generatedAtTime "2026-06-04T07:15:00-07:00"^^xsd:dateTime .
+
+ex:coach-sam a kgc:Coach ;
+    rdfs:label "Coach Sam (coach_01HXSAM)" .
+
+ex:generator a kgc:GeneratorAgent ;
+    rdfs:label "Workout generation agent" .
+
+ex:rule-engine a kgc:RuleEngine ;
+    rdfs:label "Deterministic contraindication rule engine" ;
+    rdfs:comment "Safety screening is attributed here, never to the language model." .
+
+ex:llm a kgc:LanguageModel ;
+    rdfs:label "claude-opus-5, effort=low" ;
+    rdfs:comment "Used for intent parsing and copy. Not used for any safety decision." .
+
+### The member facts consumed ##################################
+
+ex:fact-injury-knee a kgc:MemberFact ;
+    rdfs:label "Recovering mild patellofemoral pain, left knee, since 2026-05-10" ;
+    kgc:sourceText "Patellofemoral pain after a hiking trip. Cleared for low-impact loading; avoid deep knee flexion under load and plyometrics." ;
+    prov:wasDerivedFrom <file:data/member-context.json#injuries/0> .
+
+ex:fact-equipment a kgc:MemberFact ;
+    rdfs:label "Dumbbell, Kettlebell, Yoga Mat, Resistance Band - Loop, Flat Bench" ;
+    prov:wasDerivedFrom <file:data/member-context.json#equipment_available> .
+
+### Concept resolution #########################################
+
+ex:resolution-001 a kgc:ConceptResolution ;
+    prov:used ex:req-001 , ex:fact-injury-knee ;
+    prov:wasAssociatedWith ex:generator ;
+    prov:qualifiedUsage [
+        a prov:Usage ;
+        prov:entity ex:fact-injury-knee ;
+        prov:hadRole kgc:role-injury-evidence
+    ] .
+
+ex:match-knee a kgc:ConceptMatch ;
+    rdfs:label "'her knee' -> Knee joint structure" ;
+    kgc:sourceText "knee" ;
+    kgc:resolvedTo snomed:49076000 ;
+    kgc:resolverPass "exact" ;
+    kgc:confidence "1.0"^^xsd:decimal ;
+    prov:wasGeneratedBy ex:resolution-001 .
+
+ex:match-pfps a kgc:ConceptMatch ;
+    rdfs:label "'Patellofemoral pain' in the injury note -> Patellofemoral stress syndrome" ;
+    kgc:sourceText "Patellofemoral pain after a hiking trip" ;
+    kgc:resolvedTo snomed:430725003 ;
+    kgc:resolverPass "fuzzy" ;
+    kgc:confidence "0.92"^^xsd:decimal ;
+    prov:wasGeneratedBy ex:resolution-001 ;
+    rdfs:comment "The structured injury record only says joint='knee'. The diagnosis exists solely in free text, so this match is what upgrades a blunt joint filter into a condition-specific one." .
+
+ex:match-left a kgc:ConceptMatch ;
+    rdfs:label "'left knee' -> Structure of left knee joint" ;
+    kgc:sourceText "left knee" ;
+    kgc:resolvedTo snomed:719442003 ;
+    kgc:resolverPass "exact" ;
+    kgc:confidence "1.0"^^xsd:decimal ;
+    prov:wasGeneratedBy ex:resolution-001 .
+
+### Safety screening ###########################################
+
+ex:screening-001 a kgc:SafetyScreening ;
+    prov:wasInformedBy ex:resolution-001 ;
+    prov:wasAssociatedWith ex:rule-engine ;
+    prov:startedAtTime "2026-06-04T07:15:01-07:00"^^xsd:dateTime ;
+    prov:qualifiedAssociation [
+        a prov:Association ;
+        prov:agent ex:rule-engine ;
+        prov:hadPlan kgc:rule_pfps_avoid_loaded_deep_knee_flexion
+    ] .
+
+kgc:rule_pfps_avoid_loaded_deep_knee_flexion a kgc:SafetyRule ;
+    rdfs:label "Patellofemoral pain: exclude loaded deep knee flexion" ;
+    rdfs:comment "Patellofemoral contact pressure rises steeply with knee flexion angle under load, and closed-chain loading concentrates it." ;
+    prov:wasDerivedFrom snomed:430725003 .
+
+### The excluded exercise ######################################
+
+ex:exercise-goblet-split-squat a kgc:Exercise ;
+    rdfs:label "Dumbbell Goblet Split Squat" ;
+    prov:wasDerivedFrom <file:data/exercises.json#02fe4cf5-bb21-4bef-868f-fea1477e2a53> .
+
+ex:path-001 a kgc:GraphPath ;
+    kgc:pathNodes "Structure of left knee joint (719442003) -IS_A-> Knee joint structure (49076000) <-STRESSES- Dumbbell Goblet Split Squat -HAS_PATTERN-> Squat, split (deep knee flexion, loaded, closed chain)" ;
+    kgc:cypher """MATCH (i:Concept {code:'719442003'})-[:IS_A|PART_OF*0..5]->(j:Concept {is_catalog_joint:true})
+                  MATCH (e:Exercise)-[:STRESSES]->(j)
+                  MATCH (e)-[:HAS_PATTERN]->(p:MovementPattern)
+                  WHERE p.knee_flexion_demand = 'deep'
+                    AND p.external_load_typical AND e.supports_weight
+                    AND p.kinetic_chain IN ['closed','mixed']
+                  RETURN e, j, p""" .
+
+ex:exclusion-001 a kgc:Exclusion ;
+    rdfs:label "Dumbbell Goblet Split Squat excluded" ;
+    kgc:decision "exclude" ;
+    kgc:appliedRule kgc:rule_pfps_avoid_loaded_deep_knee_flexion ;
+    kgc:triggeredBy ex:fact-injury-knee ;
+    kgc:justifiedBy ex:path-001 ;
+    prov:wasGeneratedBy ex:screening-001 ;
+    prov:wasDerivedFrom ex:exercise-goblet-split-squat , ex:match-pfps ;
+    rdfs:comment "Coach-facing text: excluded because it loads the left knee in deep flexion, which is the mechanism named in Jordan's injury note." .
+
+### A second exclusion the blunt filter would have missed ######
+
+ex:exercise-jumping-jack a kgc:Exercise ;
+    rdfs:label "Jumping Jack" ;
+    prov:wasDerivedFrom <file:data/exercises.json#01bc9947-23e6-4dcf-bf66-6381a2c29700> .
+
+ex:path-002 a kgc:GraphPath ;
+    kgc:pathNodes "Jumping Jack -HAS_PATTERN-> Plyometric (impact=high). No STRESSES edge to the knee exists - the catalog tags this exercise [ankle, shoulder, hip] only." ;
+    kgc:cypher """MATCH (e:Exercise)-[:HAS_PATTERN]->(p:MovementPattern {impact:'high'}) RETURN e, p""" .
+
+ex:exclusion-002 a kgc:Exclusion ;
+    kgc:decision "exclude" ;
+    kgc:appliedRule kgc:rule_pfps_avoid_impact ;
+    kgc:triggeredBy ex:fact-injury-knee ;
+    kgc:justifiedBy ex:path-002 ;
+    prov:wasGeneratedBy ex:screening-001 ;
+    prov:wasDerivedFrom ex:exercise-jumping-jack ;
+    rdfs:comment "The load-bearing case for mechanics-based rules. A joints_loaded filter on 'knee' never touches this exercise, yet the member's note rules out plyometrics explicitly." .
+
+kgc:rule_pfps_avoid_impact a kgc:SafetyRule ;
+    rdfs:label "Patellofemoral pain: exclude high-impact movement" ;
+    rdfs:comment "Fires on mechanics alone, without requiring anatomical overlap, because joints_loaded is demonstrably incomplete." .
+
+### The prescription that replaced it ##########################
+
+ex:exercise-kb-hamstring-walkout a kgc:Exercise ;
+    rdfs:label "One-Kettlebell Hamstring Walkout" ;
+    prov:wasDerivedFrom <file:data/exercises.json#0732c6eb-2275-4af3-8276-9bb8be2aa12d> .
+
+ex:path-003 a kgc:GraphPath ;
+    kgc:pathNodes "One-Kettlebell Hamstring Walkout -REQUIRES-> Kettlebell, Yoga Mat (both in equipment profile); -HAS_PATTERN-> Hip lift (knee_flexion_demand=moderate) -> down-ranked, not excluded" ;
+    kgc:cypher """MATCH (e:Exercise)-[:REQUIRES]->(q:Equipment)
+                  WHERE ALL(x IN [(e)-[:REQUIRES]->(y) | y.id] WHERE x IN $memberEquipment)
+                  RETURN e""" .
+
+ex:prescription-001 a kgc:ExercisePrescription ;
+    rdfs:label "One-Kettlebell Hamstring Walkout - 3 x 8, 90s rest, main block" ;
+    prov:wasDerivedFrom ex:exercise-kb-hamstring-walkout ;
+    kgc:substitutedFor ex:exercise-goblet-split-squat ;
+    kgc:justifiedBy ex:path-003 ;
+    prov:wasGeneratedBy ex:assembly-001 ;
+    prov:qualifiedUsage [
+        a prov:Usage ;
+        prov:entity ex:fact-equipment ;
+        prov:hadRole kgc:role-equipment-profile
+    ] ;
+    rdfs:comment "Coach-facing text: keeps the posterior-chain strength stimulus Jordan's goal_strength needs, loads the hip rather than the patellofemoral joint, and uses equipment she owns." .
+
+ex:assembly-001 a kgc:PlanAssembly ;
+    prov:wasInformedBy ex:screening-001 ;
+    prov:wasAssociatedWith ex:generator , ex:llm .
+
+### The plan ###################################################
+
+ex:plan-001 a kgc:WorkoutPlan ;
+    rdfs:label "Lower body - knee-safe, 50 min, 2026-06-04" ;
+    prov:hadMember ex:prescription-001 ;
+    prov:wasGeneratedBy ex:assembly-001 ;
+    prov:wasAttributedTo ex:coach-sam ;
+    prov:wasDerivedFrom ex:req-001 ;
+    rdfs:comment "6 of 21 equipment-feasible exercises were excluded and 1 down-ranked. Both exclusion entities above are reachable from this plan, so the coach can see what was removed and why - not only what survived." .

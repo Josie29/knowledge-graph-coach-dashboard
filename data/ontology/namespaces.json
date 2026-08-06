@@ -1,0 +1,78 @@
+{
+  "description": "Prefix registry for every IRI used in this directory. The rdflib build script binds these prefixes and expands every `prefix:local` token found in a `target` field. Nothing elsewhere in data/ontology/ hardcodes a full IRI.",
+  "prefixes": {
+    "skos": {
+      "iri": "http://www.w3.org/2004/02/skos/core#",
+      "role": "Mapping vocabulary. Only skos:exactMatch, skos:closeMatch, skos:broader and skos:related are used."
+    },
+    "prov": {
+      "iri": "http://www.w3.org/ns/prov#",
+      "role": "Provenance vocabulary. See prov-model.ttl."
+    },
+    "rdfs": {
+      "iri": "http://www.w3.org/2000/01/rdf-schema#",
+      "role": "Labels and comments."
+    },
+    "owl": {
+      "iri": "http://www.w3.org/2002/07/owl#",
+      "role": "Class and property declarations in prov-model.ttl."
+    },
+    "xsd": {
+      "iri": "http://www.w3.org/2001/XMLSchema#",
+      "role": "Literal datatypes."
+    },
+    "dcterms": {
+      "iri": "http://purl.org/dc/terms/",
+      "role": "Ontology-level metadata."
+    },
+    "snomed": {
+      "iri": "http://snomed.info/id/",
+      "role": "SNOMED CT concepts, via the official SNOMED CT URI scheme. `snomed:49076000` expands to http://snomed.info/id/49076000.",
+      "verification": "Every code in this directory was confirmed against the NCI EVS REST API, terminology `snomedct_us`, version 2025_09_01: GET https://api-evsrest.nci.nih.gov/api/v1/concept/snomedct_us/{code}",
+      "browser": "https://evsexplore.semantics.cancer.gov/evsexplore/concept/snomedct_us/{code}",
+      "licensing": "SNOMED CT is licensed content. Only concept identifiers and preferred terms are stored here, which is the minimum needed for an alignment and is how the assessment brief directs it to be used. No SNOMED CT distribution files are redistributed in this repository."
+    },
+    "ncit": {
+      "iri": "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#",
+      "role": "NCI Thesaurus classes. Reached through OPE, which imports 614 NCIT classes to supply its anatomy and injury vocabulary.",
+      "verification": "Confirmed present in the OPE class set via GET https://data.bioontology.org/ontologies/OPE/classes"
+    },
+    "ope": {
+      "iri": "http://www.semanticweb.org/ontologies/2013/2/OPE.owl#",
+      "role": "Ontology of Physical Exercises, native namespace. Only 19 native classes exist; the rest of OPE is imported NCIT.",
+      "source": "https://bioportal.bioontology.org/ontologies/OPE",
+      "version": "submission 6, released 2013-03-13, version 0.0.1",
+      "license": "No license declared on the BioPortal submission. Publicly downloadable."
+    },
+    "copper": {
+      "iri": "https://github.com/EBehaviourChange-COPPER/ontology/blob/main/COPPER_",
+      "role": "COPPER ontology. `copper:1017` expands to .../COPPER_1017.",
+      "source": "https://bioportal.bioontology.org/ontologies/COPPER",
+      "version": "submission 5, released 2024-04-05, version 2025-10-07",
+      "publication": "https://doi.org/10.1186/s12966-025-01744-5",
+      "license": "No license declared on the BioPortal submission. Publicly downloadable.",
+      "caveat": "COPPER's native namespace is a github.com/.../blob/main/ web page path, not a resolvable identifier namespace. It will not content-negotiate to RDF. Treated here as an opaque string key."
+    },
+    "bcio": {
+      "iri": "http://humanbehaviourchange.org/ontology/BCIO_",
+      "role": "Behaviour Change Intervention Ontology, imported by COPPER. Used for the behavioural-capability and barrier upper structure."
+    },
+    "kgc": {
+      "iri": "https://github.com/Josie29/knowledge-graph-coach-dashboard/ns#",
+      "role": "Project-local namespace for concepts and rules that no published ontology covers. Not intended to be dereferenced; would be replaced by a w3id.org PURL if published.",
+      "policy": "A term is minted here only after the what-we-left-out analysis in docs/kg1-schema.md records that no published concept fits."
+    }
+  },
+  "mapping_predicates": {
+    "skos:exactMatch": "The catalog term and the ontology concept denote the same thing. Interchangeable in the safety filter.",
+    "skos:closeMatch": "Close enough to display and to reason with, but not asserted as identical. Never chained transitively.",
+    "skos:broader": "The ontology concept is a genuine generalisation of the catalog term. Used wherever the published ontology has no term at the catalog's granularity - which is the common case for equipment.",
+    "skos:narrower": "The ontology concept is a specialisation of the catalog term. Used where a published ontology only carries the individual parts of a group the catalog names collectively - the obliques, for instance, which SNOMED CT models as two separate muscles with no group concept above them.",
+    "skos:related": "Associative, non-hierarchical. Used for clinically relevant links that are neither identity nor subsumption."
+  },
+  "confidence_vocabulary": {
+    "high": "Verified against the source terminology and unambiguous.",
+    "medium": "Verified to exist, but the catalog term is colloquial or the ontology concept is broader than intended.",
+    "low": "Retained for display and traceability only. Never used as the sole basis for a safety decision."
+  }
+}
