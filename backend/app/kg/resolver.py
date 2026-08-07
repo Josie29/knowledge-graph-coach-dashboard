@@ -41,6 +41,7 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.kg.embeddings import embed_texts
+from app.observability import traced_operation
 
 # Acceptance thresholds, deliberately explicit (issue #5 asks for them).
 # Lucene full-text scores are corpus-dependent; against this ~350-node graph,
@@ -276,6 +277,59 @@ async def _vector_pass(
 
 
 async def resolve_concepts(
+    driver: AsyncDriver,
+    text: str,
+    *,
+    context: ResolutionContext | None = None,
+    concept_types: list[str] | None = None,
+) -> list[ResolvedConcept]:
+    """Resolve one free-text surface form to KG 1 concepts.
+
+    Wraps the passes in one span so a trace shows which term was resolved and
+    how, rather than up to four identical-looking Cypher statements.
+
+    Args:
+        driver: Injected Neo4j async driver (the one on ``app.state``).
+        text: The surface form to resolve, e.g. ``"bad lower back"``.
+        context: The slot being filled, when the caller knows it.
+        concept_types: When given, restricts which concept types can match.
+
+    Returns:
+        A non-empty list, as ``_resolve_concepts`` documents.
+    """
+    with traced_operation("resolve_concepts") as operation:
+        results = await _resolve_concepts(
+            driver, text, context=context, concept_types=concept_types
+        )
+        operation.describe(_resolution_summary(text, results))
+        return results
+
+
+def _resolution_summary(text: str, results: list[ResolvedConcept]) -> str:
+    """Render a resolution outcome as one readable line for the timeline.
+
+    Args:
+        text: The surface form that was resolved.
+        results: What the resolver returned.
+
+    Returns:
+        A summary such as ``resolve "burpees" -> mp_plyometric (vector 0.81)``.
+    """
+    resolved = [result for result in results if result.resolved]
+    if not resolved:
+        return f'resolve "{text}" -> unresolved'
+    if len(resolved) > 1:
+        methods = {r.match_method for r in resolved if r.match_method}
+        method = methods.pop() if len(methods) == 1 else "ambiguous"
+        return f'resolve "{text}" -> {len(resolved)} concepts ({method})'
+    top = resolved[0]
+    return (
+        f'resolve "{text}" -> {top.concept_id} '
+        f"({top.match_method} {top.score:.2f})"
+    )
+
+
+async def _resolve_concepts(
     driver: AsyncDriver,
     text: str,
     *,

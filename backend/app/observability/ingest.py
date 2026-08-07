@@ -62,11 +62,17 @@ _PAI_ALL_MESSAGES = "pydantic_ai.all_messages"
 # exactly twice the real token count. Token totals come from LLM spans only.
 _PAI_AGGREGATED_USAGE_PREFIX = "gen_ai.aggregated_usage."
 
-# --- Our own instrumentation (app/observability/setup.py)
+# --- Our own instrumentation (app/observability/setup.py). Not framework
+# --- coupled: these survive an agent-framework swap untouched.
 _DB_SYSTEM = "db.system"
-_DB_OPERATION = "db.operation.name"
 _HTTP_ROUTE = "http.route"
 _MEMBER_ID = "kg_coach.member_id"
+
+OPERATION_NAME = "kg_coach.operation"
+"""Marks a span as one step of the deterministic tool layer."""
+
+OPERATION_SUMMARY = "kg_coach.summary"
+"""One-line outcome the Traces timeline shows instead of the span name."""
 
 # Attributes that are either stored in a dedicated column or are bulky
 # content. Stripped from the `attributes` blob so message history is never
@@ -174,6 +180,11 @@ def classify(attributes: Mapping[str, Any], span_name: str) -> SpanCategory:
     """
     if _DB_SYSTEM in attributes:
         return SpanCategory.DB
+    # The resolver and safety traversal are the deterministic tool layer, the
+    # same role the agent framework's own tool calls play, so they share a
+    # category rather than inventing one the UI would have to learn.
+    if OPERATION_NAME in attributes:
+        return SpanCategory.TOOL
 
     operation = attributes.get(_OPERATION)
     if operation in _OPS_LLM:
@@ -238,7 +249,9 @@ def map_span(
             attributes.get(_RESPONSE_MODEL) or attributes.get(_REQUEST_MODEL)
         ),
         provider=_str_or_none(attributes.get(_PROVIDER)),
-        tool_name=_str_or_none(attributes.get(_TOOL_NAME)),
+        tool_name=_str_or_none(
+            attributes.get(_TOOL_NAME) or attributes.get(OPERATION_NAME)
+        ),
         route=_str_or_none(attributes.get(_HTTP_ROUTE)),
         member_id=_str_or_none(attributes.get(_MEMBER_ID)),
         attributes=_display_attributes(attributes),
