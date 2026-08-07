@@ -264,8 +264,10 @@ Every LLM call, tool call, and Neo4j query is recorded as an OpenTelemetry span 
 Postgres. One API request is one trace, so a single `POST /api/workout` reads end to end —
 member defaults, the `constraint-extractor` and `workout-planner` agent runs with their
 model requests, the resolver and safety `neo4j.query` traversals — with per-span timings,
-token counts, cost, and truncated prompts and completions. `/api/health` is excluded, since
-the healthcheck polls it every five seconds.
+token counts, cost, and truncated prompts and completions. Traces are named by what ran
+(`constraint-extractor → workout-planner`), and the list defaults to AI runs with All
+requests and Errors alongside. `/api/health` and the trace API itself are excluded: the
+healthcheck polls every five seconds, and tracing the Traces page would be a feedback loop.
 
 The design point is that **OpenTelemetry is the seam, not the vendor**. Pydantic AI emits
 OTel spans natively, so the store, read API, and UI never learn what framework produced

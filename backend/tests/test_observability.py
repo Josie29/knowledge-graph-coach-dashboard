@@ -31,7 +31,7 @@ from opentelemetry.trace import (
 from app.observability.exporter import SqlSpanExporter
 from app.observability.ingest import SpanCategory, SpanStatus, classify
 from app.observability.setup import DropRootNoiseSampler
-from app.observability.store import TraceStore, spans_table
+from app.observability.store import TraceFilter, TraceStore, spans_table
 
 _APP_PACKAGE = Path(__file__).resolve().parents[1] / "app"
 
@@ -518,6 +518,8 @@ def test_one_api_request_becomes_one_trace_and_health_becomes_none() -> None:
 
     routes = [summary.route for summary in traces]
     assert routes == ["/api/members/{member_id}"]
+    # The read that produced this list must not itself be traced.
+    assert not any(route and route.startswith("/api/traces") for route in routes)
     # The route template, not the raw path: otherwise every member would
     # produce a differently-named trace and grouping would be meaningless.
     assert traces[0].member_id == "mbr_01HX9JORDAN"
@@ -567,6 +569,151 @@ def test_the_request_span_covers_a_streamed_response() -> None:
     assert agent_span.parent is not None
     assert agent_span.parent.span_id == request_span.context.span_id
     assert request_span.end_time >= agent_span.end_time
+
+
+def test_reading_the_trace_list_does_not_create_traces() -> None:
+    """Catches the feedback loop: the Traces page observing itself.
+
+    Every render of the page calls /api/traces and /api/traces/stats. If those
+    are traced, opening the page adds two traces, which inflate the figures on
+    that same page and push the runs worth looking at off the list — the more
+    you look, the less you can see.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from app.observability import shutdown_observability
+
+    with TestClient(app) as client:
+        trace_store: TraceStore = app.state.trace_store
+        with trace_store.engine.begin() as conn:
+            conn.execute(sa.delete(spans_table))
+
+        client.get("/api/traces")
+        client.get("/api/traces/stats")
+        shutdown_observability()
+
+        assert trace_store.list_traces() == []
+
+
+def test_a_trace_is_labelled_with_the_agents_that_ran(
+    store: TraceStore, exporter: SqlSpanExporter
+) -> None:
+    """Catches the bug where every row reads "POST /api/workout" instead of
+    what actually ran, because the labels were read off the root span — which
+    is the HTTP request, and has no agent or model.
+
+    Agents come out in execution order so a workout reads as extraction then
+    planning, which is the sequence a reviewer is trying to follow.
+    """
+    base = time.time_ns()
+    exporter.export(
+        [
+            make_span("POST /api/workout", span_id=0x1, start_ns=base),
+            make_span(
+                "invoke_agent constraint-extractor",
+                span_id=0x2,
+                parent_span_id=0x1,
+                start_ns=base + 1_000_000,
+                attributes={
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.agent.name": "constraint-extractor",
+                },
+            ),
+            make_span(
+                "chat claude-haiku-4-5",
+                span_id=0x3,
+                parent_span_id=0x2,
+                start_ns=base + 2_000_000,
+                attributes={
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.request.model": "claude-haiku-4-5",
+                },
+            ),
+            make_span(
+                "invoke_agent workout-planner",
+                span_id=0x4,
+                parent_span_id=0x1,
+                start_ns=base + 3_000_000,
+                attributes={
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.agent.name": "workout-planner",
+                },
+            ),
+        ]
+    )
+
+    summary = store.list_traces()[0]
+    assert summary.agent_names == ["constraint-extractor", "workout-planner"]
+    assert summary.model == "claude-haiku-4-5"
+
+
+def test_the_ai_filter_hides_traces_with_no_llm_call(
+    store: TraceStore, exporter: SqlSpanExporter
+) -> None:
+    """Catches the bug where the default view is a request log: graph-only
+    reads outnumber agent runs many to one, so an unfiltered list buries the
+    workout the reviewer just generated under member and graph fetches.
+    """
+    exporter.export(
+        [
+            make_span(
+                "GET /api/graph/member/{member_id}",
+                trace_id=0x11,
+                span_id=0x1,
+                attributes={"db.system": "neo4j"},
+            ),
+            make_span(
+                "chat claude-haiku-4-5",
+                trace_id=0x22,
+                span_id=0x2,
+                attributes={"gen_ai.operation.name": "chat"},
+            ),
+        ]
+    )
+
+    assert len(store.list_traces(trace_filter=TraceFilter.ALL)) == 2
+    ai_only = store.list_traces(trace_filter=TraceFilter.AI)
+    assert [summary.trace_id for summary in ai_only] == [f"{0x22:032x}"]
+
+
+def test_filters_apply_before_the_limit(
+    store: TraceStore, exporter: SqlSpanExporter
+) -> None:
+    """Catches the off-by-a-page bug: filtering a limited result answers
+    "errors among the newest N" when the user asked for "the newest N errors",
+    so a failure just off the end of the page is invisible.
+    """
+    base = time.time_ns()
+    exporter.export(
+        [
+            make_span(
+                "chat claude",
+                trace_id=0x100 + index,
+                span_id=0x100 + index,
+                start_ns=base + index * 1_000_000,
+                attributes={"gen_ai.operation.name": "chat"},
+            )
+            for index in range(5)
+        ]
+    )
+    # The oldest trace is the only failing one, so it falls outside a limit of
+    # 2 unless the filter runs first.
+    exporter.export(
+        [
+            make_span(
+                "chat claude",
+                trace_id=0x99,
+                span_id=0x99,
+                start_ns=base - 10_000_000,
+                attributes={"gen_ai.operation.name": "chat"},
+                status=Status(StatusCode.ERROR, "boom"),
+            )
+        ]
+    )
+
+    failures = store.list_traces(limit=2, trace_filter=TraceFilter.ERRORS)
+    assert [summary.trace_id for summary in failures] == [f"{0x99:032x}"]
 
 
 # --- the seam ------------------------------------------------------------

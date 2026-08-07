@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from typing import Any
 
 import sqlalchemy as sa
@@ -62,13 +63,28 @@ spans_table = sa.Table(
 )
 
 
+class TraceFilter(StrEnum):
+    """Which traces the list should return."""
+
+    ALL = "all"
+    AI = "ai"
+    ERRORS = "errors"
+
+
 class TraceSummary(BaseModel):
     """One request's worth of spans, rolled up for the traces list."""
 
     trace_id: str
     name: str
     route: str | None
-    agent_name: str | None
+    # Every agent that ran, in the order they started, and the model they used.
+    # These come from the trace's spans rather than its root span: the root is
+    # the HTTP request, which has no agent, so reading them off it would make
+    # the list say "POST /api/workout" where it should say what actually ran.
+    # Required rather than defaulted, so the generated frontend type is a plain
+    # array instead of an optional one.
+    agent_names: list[str]
+    model: str | None
     member_id: str | None
     started_at: datetime
     duration_ms: float
@@ -255,33 +271,35 @@ class TraceStore:
             )
 
     def list_traces(
-        self, *, limit: int = 50, status: SpanStatus | None = None
+        self, *, limit: int = 50, trace_filter: TraceFilter = TraceFilter.ALL
     ) -> list[TraceSummary]:
         """Roll spans up into the most recent traces.
 
         Args:
             limit: Maximum traces to return, newest first.
-            status: Keep only traces with (``ERROR``) or without (``OK``) a
-                failed span. None returns everything.
+            trace_filter: Which traces to keep — everything, only those with an
+                LLM call, or only those containing a failed span.
 
         Returns:
             Trace summaries ordered newest first.
         """
         with self._engine.connect() as conn:
+            # Filtering happens in SQL, before the limit. Post-filtering a
+            # limited page would answer "errors among the newest 50" when the
+            # question was "the newest 50 errors".
             aggregates = conn.execute(
-                self._summary_query().limit(limit)
+                self._summary_query(trace_filter).limit(limit)
             ).all()
             if not aggregates:
                 return []
             trace_ids = [row.trace_id for row in aggregates]
             roots = self._root_spans(conn, trace_ids)
+            labels = self._agent_labels(conn, trace_ids)
 
-        summaries = [self._to_summary(row, roots.get(row.trace_id)) for row in aggregates]
-        if status is SpanStatus.ERROR:
-            return [s for s in summaries if s.error_count > 0]
-        if status is SpanStatus.OK:
-            return [s for s in summaries if s.error_count == 0]
-        return summaries
+        return [
+            self._to_summary(row, roots.get(row.trace_id), *labels[row.trace_id])
+            for row in aggregates
+        ]
 
     def get_trace(self, trace_id: str) -> TraceDetail | None:
         """Fetch one trace with all of its spans.
@@ -299,6 +317,7 @@ class TraceStore:
             if aggregate is None:
                 return None
             roots = self._root_spans(conn, [trace_id])
+            labels = self._agent_labels(conn, [trace_id])
             span_rows = conn.execute(
                 sa.select(spans_table)
                 .where(spans_table.c.trace_id == trace_id)
@@ -306,7 +325,9 @@ class TraceStore:
             ).all()
 
         return TraceDetail(
-            summary=self._to_summary(aggregate, roots.get(trace_id)),
+            summary=self._to_summary(
+                aggregate, roots.get(trace_id), *labels[trace_id]
+            ),
             spans=[
                 TraceSpan(
                     span_id=row.span_id,
@@ -369,8 +390,14 @@ class TraceStore:
         self._engine.dispose()
 
     @staticmethod
-    def _summary_query() -> sa.Select[Any]:
+    def _summary_query(
+        trace_filter: TraceFilter = TraceFilter.ALL,
+    ) -> sa.Select[Any]:
         """Build the per-trace aggregate used by list, detail, and stats.
+
+        Args:
+            trace_filter: Restricts the result with a HAVING clause, so the
+                filter applies before any LIMIT the caller adds.
 
         Returns:
             A select grouped by trace id, newest trace first. It returns the
@@ -380,24 +407,22 @@ class TraceStore:
             keep one query working on both.
         """
         started_at = sa.func.min(spans_table.c.started_at).label("started_at")
-        return (
+        llm_count = _count_where(spans_table.c.category == SpanCategory.LLM)
+        error_count = _count_where(spans_table.c.status == SpanStatus.ERROR)
+        query = (
             sa.select(
                 spans_table.c.trace_id,
                 started_at,
                 sa.func.max(spans_table.c.ended_at).label("ended_at"),
                 sa.func.count().label("span_count"),
-                _count_where(spans_table.c.category == SpanCategory.LLM).label(
-                    "llm_count"
-                ),
+                llm_count.label("llm_count"),
                 _count_where(spans_table.c.category == SpanCategory.TOOL).label(
                     "tool_count"
                 ),
                 _count_where(spans_table.c.category == SpanCategory.DB).label(
                     "db_count"
                 ),
-                _count_where(spans_table.c.status == SpanStatus.ERROR).label(
-                    "error_count"
-                ),
+                error_count.label("error_count"),
                 sa.func.sum(spans_table.c.input_tokens).label("input_tokens"),
                 sa.func.sum(spans_table.c.output_tokens).label("output_tokens"),
                 sa.func.sum(spans_table.c.cost_micro_usd).label("cost_micro_usd"),
@@ -405,6 +430,11 @@ class TraceStore:
             .group_by(spans_table.c.trace_id)
             .order_by(started_at.desc())
         )
+        if trace_filter is TraceFilter.AI:
+            query = query.having(llm_count > 0)
+        elif trace_filter is TraceFilter.ERRORS:
+            query = query.having(error_count > 0)
+        return query
 
     @staticmethod
     def _root_spans(conn: sa.Connection, trace_ids: Sequence[str]) -> dict[str, Row[Any]]:
@@ -426,12 +456,69 @@ class TraceStore:
         return {row.trace_id: row for row in rows}
 
     @staticmethod
-    def _to_summary(aggregate: Row[Any], root: Row[Any] | None) -> TraceSummary:
-        """Combine a trace's aggregate row with its root span.
+    def _agent_labels(
+        conn: sa.Connection, trace_ids: Sequence[str]
+    ) -> dict[str, tuple[list[str], str | None]]:
+        """Collect the agents and model that ran inside each given trace.
+
+        A separate query rather than a grouped aggregate because concatenating
+        strings per group is `string_agg` on Postgres and `group_concat` on
+        SQLite — the one place where the two dialects would have forced a
+        split. Ordering by start time keeps the agents in execution order, so a
+        workout reads "constraint-extractor -> workout-planner".
+
+        Args:
+            conn: An open connection.
+            trace_ids: Traces to look up.
+
+        Returns:
+            Trace id to its ``(agent names, model)`` pair. Traces with neither
+            map to an empty list and None.
+        """
+        rows = conn.execute(
+            sa.select(
+                spans_table.c.trace_id,
+                spans_table.c.agent_name,
+                spans_table.c.model,
+            )
+            .where(spans_table.c.trace_id.in_(trace_ids))
+            .where(
+                sa.or_(
+                    spans_table.c.agent_name.is_not(None),
+                    spans_table.c.model.is_not(None),
+                )
+            )
+            .order_by(spans_table.c.started_at)
+        ).all()
+
+        agents: dict[str, list[str]] = {}
+        models: dict[str, str] = {}
+        for row in rows:
+            if row.agent_name:
+                names = agents.setdefault(row.trace_id, [])
+                if row.agent_name not in names:
+                    names.append(row.agent_name)
+            if row.model and row.trace_id not in models:
+                models[row.trace_id] = row.model
+        return {
+            trace_id: (agents.get(trace_id, []), models.get(trace_id))
+            for trace_id in trace_ids
+        }
+
+    @staticmethod
+    def _to_summary(
+        aggregate: Row[Any],
+        root: Row[Any] | None,
+        agent_names: list[str],
+        model: str | None,
+    ) -> TraceSummary:
+        """Combine a trace's aggregate row with its root span and agent labels.
 
         Args:
             aggregate: One row from `_summary_query`.
             root: The trace's parentless span, when it has been stored.
+            agent_names: Agents that ran, in execution order.
+            model: The model used, if any.
 
         Returns:
             The trace summary. Falls back to neutral values when the root span
@@ -444,7 +531,8 @@ class TraceStore:
             trace_id=aggregate.trace_id,
             name=root.name if root is not None else "(incomplete trace)",
             route=root.route if root is not None else None,
-            agent_name=root.agent_name if root is not None else None,
+            agent_names=agent_names,
+            model=model,
             member_id=root.member_id if root is not None else None,
             started_at=started_at,
             # Wall-clock across every span, not the root span's own duration,

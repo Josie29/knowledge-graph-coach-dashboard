@@ -23,6 +23,7 @@ export type TraceDetail = components['schemas']['TraceDetail']
 export type TraceSpan = components['schemas']['TraceSpan']
 export type TraceStats = components['schemas']['TraceStats']
 export type SpanCategory = components['schemas']['SpanCategory']
+export type TraceFilter = components['schemas']['TraceFilter']
 
 export interface MemberProfile {
   id: string
@@ -114,12 +115,17 @@ async function getJson<T>(path: string): Promise<T> {
 /**
  * List recent traces, newest first.
  *
+ * @param show - Which traces to keep: all requests, AI runs, or errors.
+ *   Filtering happens server-side before the limit.
  * @param limit - Maximum traces to return.
  * @returns Trace summaries with span counts, tokens, and cost.
  * @throws Error with the API's detail message on failure.
  */
-export async function fetchTraces(limit = 50): Promise<TraceSummary[]> {
-  return getJson<TraceSummary[]>(`/api/traces?limit=${limit}`)
+export async function fetchTraces(
+  show: TraceFilter = 'all',
+  limit = 50,
+): Promise<TraceSummary[]> {
+  return getJson<TraceSummary[]>(`/api/traces?show=${show}&limit=${limit}`)
 }
 
 /**

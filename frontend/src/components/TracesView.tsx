@@ -11,6 +11,7 @@ import {
   fetchTraces,
   fetchTraceStats,
   type TraceDetail,
+  type TraceFilter,
   type TraceStats,
   type TraceSummary,
 } from '@/lib/api'
@@ -19,6 +20,41 @@ type ListState =
   | { kind: 'loading' }
   | { kind: 'loaded'; traces: TraceSummary[]; stats: TraceStats }
   | { kind: 'error'; message: string }
+
+const FILTERS: ReadonlyArray<{ id: TraceFilter; label: string }> = [
+  { id: 'ai', label: 'AI runs' },
+  { id: 'all', label: 'All requests' },
+  { id: 'errors', label: 'Errors' },
+]
+
+const EMPTY_STATE: Record<TraceFilter, { title: string; body: string }> = {
+  ai: {
+    title: 'No AI runs yet',
+    body: 'Generate a workout or ask the copilot a question, then come back. Switch to All requests to see graph queries and other traffic.',
+  },
+  all: {
+    title: 'No traces yet',
+    body: 'Nothing has been traced. Health checks and the Traces page itself are deliberately excluded, so browsing here records nothing.',
+  },
+  errors: {
+    title: 'No failures',
+    body: 'No traced request has contained a failed span.',
+  },
+}
+
+/**
+ * Label a trace by what ran inside it, falling back to the request.
+ *
+ * A trace's identity is the work it did — "constraint-extractor →
+ * workout-planner" — not the route that happened to trigger it. Requests with
+ * no agent (graph reads, member fetches) keep the route as their name.
+ *
+ * @param trace - The trace summary to label.
+ * @returns A display label.
+ */
+function traceLabel(trace: TraceSummary): string {
+  return trace.agent_names.length > 0 ? trace.agent_names.join(' → ') : trace.name
+}
 
 /**
  * Format a timestamp as a local wall-clock time.
@@ -79,13 +115,14 @@ function TraceRow({
         )}
       >
         <span className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-medium">{trace.name}</span>
+          <span className="truncate text-sm font-medium">{traceLabel(trace)}</span>
           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
             {formatDuration(trace.duration_ms)}
           </span>
         </span>
         <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           <span className="tabular-nums">{formatTime(trace.started_at)}</span>
+          {trace.model && <span className="font-mono">{trace.model}</span>}
           {trace.status === 'error' && <Badge variant="destructive">error</Badge>}
           {trace.llm_count > 0 && <Badge variant="secondary">{trace.llm_count} LLM</Badge>}
           {trace.tool_count > 0 && <Badge variant="secondary">{trace.tool_count} tool</Badge>}
@@ -99,6 +136,13 @@ function TraceRow({
             <span className="tabular-nums">{formatCost(trace.cost_micro_usd)}</span>
           )}
         </span>
+        {/* The route is secondary once the agents name the trace, but it is
+            still how you tell two runs of the same agent apart. */}
+        {trace.agent_names.length > 0 && trace.route && (
+          <span className="truncate font-mono text-xs text-muted-foreground">
+            {trace.route}
+          </span>
+        )}
       </button>
     </li>
   )
@@ -114,12 +158,13 @@ function TraceRow({
  */
 export function TracesView() {
   const [state, setState] = useState<ListState>({ kind: 'loading' })
+  const [show, setShow] = useState<TraceFilter>('ai')
   const [selected, setSelected] = useState<TraceDetail | null>(null)
   const [detailError, setDetailError] = useState<string | null>(null)
 
   const load = useCallback(() => {
     setState({ kind: 'loading' })
-    Promise.all([fetchTraces(), fetchTraceStats()])
+    Promise.all([fetchTraces(show), fetchTraceStats()])
       .then(([traces, stats]) => setState({ kind: 'loaded', traces, stats }))
       .catch((err: unknown) =>
         setState({
@@ -127,7 +172,7 @@ export function TracesView() {
           message: err instanceof Error ? err.message : 'Failed to load traces',
         }),
       )
-  }, [])
+  }, [show])
 
   useEffect(load, [load])
 
@@ -150,9 +195,29 @@ export function TracesView() {
               Every LLM call, tool call, and graph query, recorded locally.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={load}>
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <div role="tablist" aria-label="Filter traces" className="flex gap-1">
+              {FILTERS.map(({ id, label }) => (
+                <Button
+                  key={id}
+                  role="tab"
+                  aria-selected={show === id}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShow(id)}
+                  className={cn(
+                    'text-muted-foreground',
+                    show === id && 'bg-muted text-foreground',
+                  )}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" onClick={load}>
+              Refresh
+            </Button>
+          </div>
         </div>
         {state.kind === 'loaded' && <StatsRow stats={state.stats} />}
       </section>
@@ -176,11 +241,8 @@ export function TracesView() {
       {state.kind === 'loaded' && state.traces.length === 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>No traces yet</CardTitle>
-            <CardDescription>
-              Generate a workout or ask the copilot a question, then come back. Health
-              checks are deliberately not traced.
-            </CardDescription>
+            <CardTitle>{EMPTY_STATE[show].title}</CardTitle>
+            <CardDescription>{EMPTY_STATE[show].body}</CardDescription>
           </CardHeader>
         </Card>
       )}
@@ -204,7 +266,7 @@ export function TracesView() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                {selected ? selected.summary.name : 'Select a trace'}
+                {selected ? traceLabel(selected.summary) : 'Select a trace'}
               </CardTitle>
               <CardDescription>
                 {detailError

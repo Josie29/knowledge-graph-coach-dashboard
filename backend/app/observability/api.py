@@ -6,8 +6,13 @@ import sqlalchemy as sa
 from fastapi import APIRouter, HTTPException, Query, Request
 from starlette.concurrency import run_in_threadpool
 
-from app.observability.ingest import SpanStatus
-from app.observability.store import TraceDetail, TraceStats, TraceStore, TraceSummary
+from app.observability.store import (
+    TraceDetail,
+    TraceFilter,
+    TraceStats,
+    TraceStore,
+    TraceSummary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +49,12 @@ def _store_of(request: Request) -> TraceStore:
 async def list_traces(
     request: Request,
     limit: int = Query(50, ge=1, le=200),
-    status: SpanStatus | None = Query(
-        None, description="Keep only successful or only failed traces."
+    show: TraceFilter = Query(
+        TraceFilter.ALL,
+        description=(
+            "all: every traced request. ai: only traces containing an LLM "
+            "call. errors: only traces containing a failed span."
+        ),
     ),
 ) -> list[TraceSummary]:
     """List recent traces, newest first.
@@ -53,7 +62,7 @@ async def list_traces(
     Args:
         request: The incoming request.
         limit: Maximum traces to return.
-        status: Optional filter on whether the trace contains a failed span.
+        show: Which traces to keep. Filtering happens before the limit.
 
     Returns:
         Trace summaries with span counts, token usage, and cost.
@@ -63,7 +72,9 @@ async def list_traces(
     """
     store = _store_of(request)
     try:
-        return await run_in_threadpool(store.list_traces, limit=limit, status=status)
+        return await run_in_threadpool(
+            store.list_traces, limit=limit, trace_filter=show
+        )
     except sa.exc.SQLAlchemyError as exc:
         raise _unavailable(exc) from exc
 
