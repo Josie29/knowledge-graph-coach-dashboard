@@ -169,7 +169,7 @@ export interface paths {
          *     Args:
          *         request: The incoming request.
          *         limit: Maximum traces to return.
-         *         status: Optional filter on whether the trace contains a failed span.
+         *         show: Which traces to keep. Filtering happens before the limit.
          *
          *     Returns:
          *         Trace summaries with span counts, token usage, and cost.
@@ -677,6 +677,12 @@ export interface components {
             spans: components["schemas"]["TraceSpan"][];
         };
         /**
+         * TraceFilter
+         * @description Which traces the list should return.
+         * @enum {string}
+         */
+        TraceFilter: "all" | "ai" | "errors";
+        /**
          * TraceSpan
          * @description One span as the trace detail view shows it.
          */
@@ -756,8 +762,10 @@ export interface components {
             name: string;
             /** Route */
             route: string | null;
-            /** Agent Name */
-            agent_name: string | null;
+            /** Agent Names */
+            agent_names: string[];
+            /** Model */
+            model: string | null;
             /** Member Id */
             member_id: string | null;
             /**
@@ -1012,8 +1020,8 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
-                /** @description Keep only successful or only failed traces. */
-                status?: components["schemas"]["SpanStatus"] | null;
+                /** @description all: every traced request. ai: only traces containing an LLM call. errors: only traces containing a failed span. */
+                show?: components["schemas"]["TraceFilter"];
             };
             header?: never;
             path?: never;

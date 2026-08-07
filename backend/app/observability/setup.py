@@ -34,9 +34,15 @@ _tracer = trace.get_tracer("kg-coach")
 # handful a reviewer actually triggered.
 _DROPPED_ROOT_SPAN_NAMES = frozenset({"neo4j.query"})
 
-# Paths that get no request span at all. Anything under one of these is
+# Path prefixes that get no request span at all. Anything under one of these is
 # therefore parentless, which is what makes the sampler above able to drop it.
-_UNTRACED_PATHS = frozenset({"/api/health"})
+#
+# /api/traces is the trace store's own read API. Tracing it is a feedback loop:
+# every render of the Traces page mints two more traces, which inflate the
+# figures on that same page and bury the runs worth looking at. Excluding the
+# telemetry read path is standard for the same reason exporters never trace
+# their own exports.
+_UNTRACED_PATH_PREFIXES = ("/api/health", "/api/traces")
 
 # Module-level singletons. OpenTelemetry's `set_tracer_provider` is set-once:
 # a second call logs a warning and keeps the first provider, so a second
@@ -190,19 +196,19 @@ class RequestSpanMiddleware:
         self,
         app: Any,
         *,
-        untraced_paths: frozenset[str] = _UNTRACED_PATHS,
+        untraced_path_prefixes: tuple[str, ...] = _UNTRACED_PATH_PREFIXES,
         tracer: trace.Tracer | None = None,
     ):
         """Wrap an ASGI application.
 
         Args:
             app: The downstream ASGI application.
-            untraced_paths: Exact paths that produce no span at all.
+            untraced_path_prefixes: Path prefixes that produce no span at all.
             tracer: Tracer to open request spans on. Defaults to the module
                 tracer, which resolves to the global provider.
         """
         self._app = app
-        self._untraced_paths = untraced_paths
+        self._untraced_path_prefixes = untraced_path_prefixes
         self._tracer = tracer or _tracer
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
@@ -213,7 +219,9 @@ class RequestSpanMiddleware:
             receive: The ASGI receive channel.
             send: The ASGI send channel.
         """
-        if scope["type"] != "http" or scope["path"] in self._untraced_paths:
+        if scope["type"] != "http" or scope["path"].startswith(
+            self._untraced_path_prefixes
+        ):
             await self._app(scope, receive, send)
             return
 

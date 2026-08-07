@@ -21,12 +21,36 @@ POST /api/workout                          1.8 s
    └─ chat claude-haiku-4-5                1.3 s   2140 in / 380 out  $0.0021
 ```
 
+A trace is named by **what ran**, not by what was requested: the row above reads
+`constraint-extractor → workout-planner`, with the route as a secondary line. The agents come
+from the trace's spans, not its root span — the root is the HTTP request, which has no agent.
+
 Expanding a span shows its truncated prompt and completion, its remaining attributes, and
 any error. That is what makes a bad plan debuggable after the fact rather than by re-running
 it with print statements.
 
-`/api/health` is deliberately never traced: `make up` and the Compose healthcheck poll it
-every five seconds, which would bury real traces under roughly 17,000 junk ones a day.
+The list defaults to **AI runs** — traces containing at least one model request — with
+**All requests** and **Errors** alongside. Graph-only requests (member fetches, the
+knowledge-graph explorer) are still traced and still worth reading, because their
+`neo4j.query` spans are how you check the resolver and safety traversal; they just outnumber
+agent runs many to one, so they are not the default view. Filtering happens in SQL before the
+limit, so "the newest 20 errors" means that rather than "errors among the newest 20".
+
+### What is never traced
+
+- **`/api/health`** — `make up` and the Compose healthcheck poll it every five seconds, which
+  would bury real traces under roughly 17,000 junk ones a day.
+- **`/api/traces*`** — the trace store's own read API. Tracing it is a feedback loop: every
+  render of the Traces page would mint two more traces, which inflate the figures on that same
+  page and push the runs worth looking at off the list. The more you looked, the less you
+  could see. Excluding the telemetry read path is the same reason an exporter never traces its
+  own exports.
+
+Both are excluded at the middleware, before a span is created, so the graph queries underneath
+them are never recorded either.
+
+The endpoints behind the page are `GET /api/traces?show=ai|all|errors`, with
+`/api/traces/{trace_id}` for the span tree and `/api/traces/stats` for the header figures.
 
 ## Configuration
 
