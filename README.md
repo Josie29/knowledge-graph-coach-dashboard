@@ -108,13 +108,20 @@ a plan from that pool (LLM). An output validator rejects any plan referencing an
 outside the pool, so the model **cannot re-introduce a filtered exercise** even if it
 tries. Safety is a graph property, not a prompt instruction.
 
+## Deeper reading
 
-## Tech choices
-
-The full decision docs: **[docs/tech-stack.md](docs/tech-stack.md)**,
-**[docs/knowledge-graph-options.md](docs/knowledge-graph-options.md)**,
-**[docs/agent-framework-options.md](docs/agent-framework-options.md)**.
-
+| Doc | What |
+|---|---|
+| [tech-stack.md](docs/tech-stack.md) | Stack choices, defended, with the rejected alternatives |
+| [knowledge-graph-options.md](docs/knowledge-graph-options.md) | Why Neo4j over the RDF stores |
+| [agent-framework-options.md](docs/agent-framework-options.md) | Why Pydantic AI over LangGraph |
+| [kg1-schema.md](docs/kg1-schema.md) | KG 1 schema, ontology curation, and what was left out |
+| [data-overview.md](docs/data-overview.md) | Dataset field guide and the 14 quirks |
+| [example-runs.md](docs/example-runs.md) | Three worked runs: injury, limited equipment, explicit exclusion |
+| [churn-risk-classification.md](docs/churn-risk-classification.md) | How churn risk is scored |
+| [observability.md](docs/observability.md) | Trace store, spans, the Traces tab |
+| [prod-eval.md](docs/prod-eval.md) | Metrics, failure modes, safety monitoring |
+| [ai-usage.md](docs/ai-usage.md) | How AI was used to build this |
 
 ## Abbreviations
 
