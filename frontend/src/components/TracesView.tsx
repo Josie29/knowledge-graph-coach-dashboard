@@ -81,10 +81,20 @@ function StatTile({ label, value }: { label: string; value: string }) {
   )
 }
 
-function StatsRow({ stats }: { stats: TraceStats }) {
+/** What the first tile counts, per filter — the tiles follow the list. */
+const COUNT_LABEL: Record<TraceFilter, string> = {
+  ai: 'AI runs',
+  all: 'Traces',
+  errors: 'Failed',
+}
+
+function StatsRow({ stats, show }: { stats: TraceStats; show: TraceFilter }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-      <StatTile label={`Traces (${stats.window_hours}h)`} value={String(stats.trace_count)} />
+      <StatTile
+        label={`${COUNT_LABEL[show]} (${stats.window_hours}h)`}
+        value={String(stats.trace_count)}
+      />
       <StatTile label="Failed" value={String(stats.error_trace_count)} />
       <StatTile label="LLM calls" value={String(stats.llm_call_count)} />
       <StatTile label="Graph queries" value={String(stats.graph_query_count)} />
@@ -164,7 +174,7 @@ export function TracesView() {
 
   const load = useCallback(() => {
     setState({ kind: 'loading' })
-    Promise.all([fetchTraces(show), fetchTraceStats()])
+    Promise.all([fetchTraces(show), fetchTraceStats(show)])
       .then(([traces, stats]) => setState({ kind: 'loaded', traces, stats }))
       .catch((err: unknown) =>
         setState({
@@ -219,7 +229,7 @@ export function TracesView() {
             </Button>
           </div>
         </div>
-        {state.kind === 'loaded' && <StatsRow stats={state.stats} />}
+        {state.kind === 'loaded' && <StatsRow stats={state.stats} show={show} />}
       </section>
 
       {state.kind === 'loading' && (

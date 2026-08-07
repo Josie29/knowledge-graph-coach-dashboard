@@ -200,6 +200,7 @@ export interface paths {
          *     Args:
          *         request: The incoming request.
          *         window_hours: How far back to aggregate, up to one week.
+         *         show: Which traces the figures should describe.
          *
          *     Returns:
          *         Counts, token and cost totals, and latency percentiles.
@@ -1053,6 +1054,8 @@ export interface operations {
         parameters: {
             query?: {
                 window_hours?: number;
+                /** @description Restrict the figures to the same traces the list shows. */
+                show?: components["schemas"]["TraceFilter"];
             };
             header?: never;
             path?: never;

@@ -334,7 +334,7 @@
           "observability"
         ],
         "summary": "Trace Stats",
-        "description": "Summarise recent tracing activity.\n\nArgs:\n    request: The incoming request.\n    window_hours: How far back to aggregate, up to one week.\n\nReturns:\n    Counts, token and cost totals, and latency percentiles.\n\nRaises:\n    HTTPException: 503 when tracing is disabled or the store is unreachable.",
+        "description": "Summarise recent tracing activity.\n\nArgs:\n    request: The incoming request.\n    window_hours: How far back to aggregate, up to one week.\n    show: Which traces the figures should describe.\n\nReturns:\n    Counts, token and cost totals, and latency percentiles.\n\nRaises:\n    HTTPException: 503 when tracing is disabled or the store is unreachable.",
         "operationId": "trace_stats_api_traces_stats_get",
         "parameters": [
           {
@@ -348,6 +348,17 @@
               "default": 24,
               "title": "Window Hours"
             }
+          },
+          {
+            "name": "show",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TraceFilter",
+              "description": "Restrict the figures to the same traces the list shows.",
+              "default": "all"
+            },
+            "description": "Restrict the figures to the same traces the list shows."
           }
         ],
         "responses": {

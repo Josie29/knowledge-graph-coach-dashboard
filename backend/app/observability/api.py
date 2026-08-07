@@ -81,13 +81,19 @@ async def list_traces(
 
 @router.get("/stats", response_model=TraceStats)
 async def trace_stats(
-    request: Request, window_hours: int = Query(24, ge=1, le=168)
+    request: Request,
+    window_hours: int = Query(24, ge=1, le=168),
+    show: TraceFilter = Query(
+        TraceFilter.ALL,
+        description="Restrict the figures to the same traces the list shows.",
+    ),
 ) -> TraceStats:
     """Summarise recent tracing activity.
 
     Args:
         request: The incoming request.
         window_hours: How far back to aggregate, up to one week.
+        show: Which traces the figures should describe.
 
     Returns:
         Counts, token and cost totals, and latency percentiles.
@@ -97,7 +103,9 @@ async def trace_stats(
     """
     store = _store_of(request)
     try:
-        return await run_in_threadpool(store.stats, window_hours=window_hours)
+        return await run_in_threadpool(
+            store.stats, window_hours=window_hours, trace_filter=show
+        )
     except sa.exc.SQLAlchemyError as exc:
         raise _unavailable(exc) from exc
 

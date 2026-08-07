@@ -142,10 +142,17 @@ export async function fetchTrace(traceId: string): Promise<TraceDetail> {
 /**
  * Fetch aggregate tracing figures for a recent window.
  *
+ * @param show - Restrict the figures to the same traces the list shows, so the
+ *   header cannot contradict the rows beneath it.
  * @param windowHours - How far back to aggregate.
  * @returns Counts, token and cost totals, and latency percentiles.
  * @throws Error with the API's detail message on failure.
  */
-export async function fetchTraceStats(windowHours = 24): Promise<TraceStats> {
-  return getJson<TraceStats>(`/api/traces/stats?window_hours=${windowHours}`)
+export async function fetchTraceStats(
+  show: TraceFilter = 'all',
+  windowHours = 24,
+): Promise<TraceStats> {
+  return getJson<TraceStats>(
+    `/api/traces/stats?show=${show}&window_hours=${windowHours}`,
+  )
 }

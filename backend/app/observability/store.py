@@ -353,11 +353,18 @@ class TraceStore:
             ],
         )
 
-    def stats(self, *, window_hours: int = 24) -> TraceStats:
+    def stats(
+        self,
+        *,
+        window_hours: int = 24,
+        trace_filter: TraceFilter = TraceFilter.ALL,
+    ) -> TraceStats:
         """Summarise recent activity for the traces page header.
 
         Args:
             window_hours: How far back to aggregate.
+            trace_filter: Restricts the population the figures describe, so the
+                header agrees with the list shown beneath it.
 
         Returns:
             Counts, token and cost totals, and latency percentiles. Empty
@@ -366,7 +373,9 @@ class TraceStore:
         cutoff = datetime.now(UTC) - timedelta(hours=window_hours)
         with self._engine.connect() as conn:
             rows = conn.execute(
-                self._summary_query().where(spans_table.c.started_at >= cutoff)
+                self._summary_query(trace_filter).where(
+                    spans_table.c.started_at >= cutoff
+                )
             ).all()
 
         durations = sorted(
