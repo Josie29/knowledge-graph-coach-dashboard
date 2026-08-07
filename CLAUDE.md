@@ -78,3 +78,15 @@ cd frontend && npm run gen:api   # openapi.json -> src/lib/api-types.ts
 - Haiku 4.5 does not support the `effort` parameter or adaptive thinking — code that sets
   either must branch on the configured model, so keep those calls out of shared paths until
   the model is pinned.
+
+## New feature workflow
+
+New features are the exception to "commit directly to `main`" above — build them in an
+isolated worktree and land them through a PR:
+
+1. **Branch in a worktree.** Create the feature branch in a git worktree outside the `main`
+   checkout — never build the feature on `main` itself.
+2. **Open a PR into `main`.** The worktree branch ends in a pull request for a human to
+   review and approve; do not merge it yourself.
+3. **Clean up after merge.** Once merged, remove the worktree (`git worktree remove`) and
+   delete the feature branch, locally and on `origin`.
