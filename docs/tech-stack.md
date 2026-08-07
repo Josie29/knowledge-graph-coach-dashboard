@@ -12,7 +12,7 @@ are documented separately and summarized here:
 | Data | Embeddings (resolver pass 3) | fastembed (local ONNX) | $0, no API key, deterministic; ~200 concepts embed in milliseconds, no torch dependency |
 | AI | Agent framework | Pydantic AI | Typed `WorkoutPlan`/`CopilotAnswer` outputs are the API contract; DI injects the Neo4j driver into a deterministic tool layer — see [agent doc](./agent-framework-options.md) |
 | AI | LLM | Claude Opus 5 (`claude-opus-5`), effort low/medium | Low/medium effort is unusually strong on this model — main lever for the ~5s target; prompt caching on the ontology preamble |
-| AI | Observability | Langfuse (cloud free tier) via OpenTelemetry | Pydantic AI emits OTel natively; 50k units/mo free covers a take-home many times over |
+| AI | Observability | Self-hosted trace store (Postgres) via OpenTelemetry | Pydantic AI emits OTel natively, so the sink is a swap, not an integration; one local Postgres means tracing works with no account and no keys — see [observability doc](./observability.md) |
 | Backend | API framework | FastAPI | Pydantic models double as response schemas — one type from agent output to browser; async fits streaming |
 | Backend | Python tooling | uv | Single lockfile, fast installs, `uv run` keeps the one-command story honest |
 | Frontend | Framework | React 19 + Vite + TypeScript | SPA is all the dashboard needs; Vite dev server proxies to FastAPI; TS types generated from the Pydantic schemas |
@@ -35,7 +35,7 @@ are documented separately and summarized here:
 | Agent framework | Mastra (single Next.js repo) | Flips ontology ingest to TypeScript, losing rdflib for SKOS/PROV-O |
 | Agent framework | Anthropic SDK direct | Viable fallback, but hand-rolls streaming, tracing, and eval scaffolding a framework provides |
 | LLM | Claude Sonnet 5 | Fallback if Opus latency misses ~5s; Opus at low effort is stronger per token here |
-| Observability | LangSmith | Tied to LangChain gravity; Langfuse is OTel-native and framework-agnostic |
+| Observability | LangSmith, Langfuse Cloud, Logfire | All are OTel sinks, so none is load-bearing; each makes the one feature that proves the system is inspectable depend on a third-party account. Self-hosting one Postgres costs ~256 MB and works out of the box |
 | API framework | Next.js API routes | Only makes sense in the rejected all-TS Mastra path |
 | Frontend framework | Next.js | SSR/routing machinery unused in a single-page coach dashboard; Vite is lighter and faster to iterate |
 | Charts | D3 | Too low-level for three simple trend charts in a day |
@@ -50,11 +50,14 @@ are documented separately and summarized here:
   in-console first (flagged in [KG doc](./knowledge-graph-options.md)).
 - **Frontend component tests** — Vitest + React Testing Library if time allows; the two required
   tests are backend-only, so this is a nice-to-have.
-- **Langfuse cloud vs. self-hosted** — **resolved: cloud free tier** (issue #13). Langfuse v3
-  self-hosting needs ClickHouse + Postgres + Redis + MinIO — four extra containers that blow this
-  repo's ~1.2 GB memory budget — while the cloud free tier is zero-infra. Tracing is opt-in: with
-  no `LANGFUSE_*` keys in `.env` the app runs unchanged (no-op spans), so a reviewer without an
-  account loses nothing. To view traces: create a free project at cloud.langfuse.com, put its
-  keys in `.env`, restart, generate one workout and ask the copilot one question — each shows up
-  as an agent-run trace with the LLM calls, tool calls, and `neo4j.query` graph traversals nested
-  inside (details in `backend/app/observability.py`).
+- **Hosted vs. self-hosted tracing** — **resolved: self-hosted, one Postgres** (issue #13,
+  revised). The earlier resolution was Langfuse's cloud free tier, on the grounds that Langfuse
+  v3 self-hosting needs ClickHouse + Postgres + Redis + MinIO — four containers that blow this
+  repo's memory budget. That argument holds against *Langfuse's* topology and not against
+  self-hosting generally: one Postgres with one table costs ~256 MB. What forced the revision is
+  that cloud tracing was gated on `LANGFUSE_*` keys, so a reviewer without an account got no
+  tracer provider at all and every span became a no-op — the feature meant to prove the system is
+  inspectable was the one feature requiring a third-party signup. Tracing is now on by default
+  with nothing to configure, and because instrumentation stays OpenTelemetry the sink remains
+  swappable: `OBS_DATABASE_URL` alone switches Postgres for SQLite. Details and the
+  framework-porting guide in [observability doc](./observability.md).

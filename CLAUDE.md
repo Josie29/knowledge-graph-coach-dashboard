@@ -16,7 +16,8 @@ make up                # Neo4j + kg-build + API + web, then prints the URLs to o
   features are configured). `make down` / `logs` / `restart` / `rebuild` / `test` also exist.
 - Keep `/api/health` and the `banner` target in sync — the Makefile parses that JSON.
 - Data persists in the `neo4j-data` volume.
-- Memory is capped per service (~1.2 GB total); Neo4j heap/pagecache are pinned deliberately.
+- Memory is capped per service (~1.5 GB total); Neo4j heap/pagecache are pinned deliberately,
+  and the trace-store Postgres is held to 256 MB.
 - `api` and `web` have healthchecks, so `web` only starts once the API answers.
 
 ## Run pieces without Docker
@@ -48,8 +49,12 @@ cd frontend && npm run gen:api   # openapi.json -> src/lib/api-types.ts
 
 ## Layout
 
-- `backend/` — FastAPI, managed with uv. `app/main.py` mounts routers; Neo4j async driver lives
-  on `app.state` via lifespan.
+- `backend/` — FastAPI, managed with uv. `app/main.py` mounts routers; Neo4j async driver and
+  the trace store live on `app.state` via lifespan.
+- `backend/app/observability/` — local trace store for LLM/tool/graph calls. `ingest.py` is
+  the framework seam: it is the only module allowed to reference `gen_ai.*` attribute keys,
+  and a test enforces that. Classify spans on `gen_ai.operation.name`, never on span names —
+  Pydantic AI has already renamed them once. See `docs/observability.md` before changing it.
 - `frontend/` — React 19 + Vite + TypeScript, Tailwind v4 + shadcn/ui, `@/` aliases `src/`.
 - `data/` — source datasets (`exercises.json`, `member-context.json`) and curated ontology
   mappings under `data/ontology/`.

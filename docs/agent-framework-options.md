@@ -23,7 +23,7 @@ Landscape scan for the agentic runtime behind the workout generator (build step 
 | **Microsoft Agent Framework** | Graph-based orchestration; successor to AutoGen + Semantic Kernel | Precise control; enterprise/.NET story | Heaviest option; Azure-oriented; nothing needed here | Free OSS |
 | **LangChain DeepAgents** | Higher-level agent abstraction over LangGraph | Less boilerplate than raw LangGraph | Extra layer on an already over-provisioned stack | Free OSS |
 
-**Observability (orthogonal):** Langfuse — MIT, framework-agnostic, OpenTelemetry-based. Free tier 50k units/mo, Core $29/mo, self-host free. Cheapest path to the tracing nice-to-have from any option above.
+**Observability (orthogonal):** every option above emits OpenTelemetry, so tracing is a sink choice rather than a framework choice — and it cuts the other way too: because instrumentation is OTel, the trace store built here survives swapping any of these frameworks in. Shipped as a self-hosted Postgres rather than a hosted tier (Langfuse, LangSmith, Logfire) so it needs no account; see [observability doc](./observability.md).
 
 ## Recommendation
 
@@ -43,7 +43,7 @@ agents/
 1. **The typed output is the deliverable.** `WorkoutPlan` (warmup/main/cooldown, sets/reps/rest, per-exercise `ProvenanceTrace`) is validated before it reaches the browser and doubles as the FastAPI response model. No parsing layer, no retry-on-malformed-JSON.
 2. **The LLM is structurally out of the safety path.** `safe_exercise_pool` returns an already-filtered pool plus the justifying graph paths. "What if it hallucinates a barbell exercise?" → "it can't, the tool never returned one."
 3. **DI fits the graph.** Neo4j driver, member ID, and confidence thresholds enter as typed deps — which is also what makes the resolver and safety filter testable in isolation, the two required tests in build step 8.
-4. **Streaming and tracing come nearly free.** AG-UI + Vercel AI Elements stream the copilot into React; native OpenTelemetry emits LLM calls, tool calls, and instrumented graph queries into Langfuse's free tier.
+4. **Streaming and tracing come nearly free.** AG-UI + Vercel AI Elements stream the copilot into React; native OpenTelemetry emits LLM calls, tool calls, and instrumented graph queries into the local trace store behind the Traces tab.
 5. **Two agents is honest multi-agent.** Different output types over a shared tool layer is a real boundary — better in review than role-played personas, at no extra cost.
 6. **Matches the KG choice.** rdflib for ingest, Neo4j Python driver at runtime, embeddings for resolver pass 3 — one language, one dependency file, one `docker compose up && uv run`.
 

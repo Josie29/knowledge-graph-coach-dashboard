@@ -155,6 +155,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/traces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Traces
+         * @description List recent traces, newest first.
+         *
+         *     Args:
+         *         request: The incoming request.
+         *         limit: Maximum traces to return.
+         *         status: Optional filter on whether the trace contains a failed span.
+         *
+         *     Returns:
+         *         Trace summaries with span counts, token usage, and cost.
+         *
+         *     Raises:
+         *         HTTPException: 503 when tracing is disabled or the store is unreachable.
+         */
+        get: operations["list_traces_api_traces_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traces/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trace Stats
+         * @description Summarise recent tracing activity.
+         *
+         *     Args:
+         *         request: The incoming request.
+         *         window_hours: How far back to aggregate, up to one week.
+         *
+         *     Returns:
+         *         Counts, token and cost totals, and latency percentiles.
+         *
+         *     Raises:
+         *         HTTPException: 503 when tracing is disabled or the store is unreachable.
+         */
+        get: operations["trace_stats_api_traces_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traces/{trace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Trace
+         * @description Fetch one trace and every span inside it.
+         *
+         *     Args:
+         *         request: The incoming request.
+         *         trace_id: The 32-character hex trace id.
+         *
+         *     Returns:
+         *         The trace summary plus its spans, ordered by start time.
+         *
+         *     Raises:
+         *         HTTPException: 404 when no such trace is stored, 503 when tracing is
+         *             disabled or the store is unreachable.
+         */
+        get: operations["get_trace_api_traces__trace_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -413,6 +505,10 @@ export interface components {
             exercises: number;
             /** Members */
             members: number;
+            /** Tracing Enabled */
+            tracing_enabled: boolean;
+            /** Traces Recorded */
+            traces_recorded: number;
         };
         /**
          * InjuryConstraint
@@ -558,6 +654,136 @@ export interface components {
             /** Escalated From */
             escalated_from?: string | null;
             anatomy_path?: components["schemas"]["GraphPath"] | null;
+        };
+        /**
+         * SpanCategory
+         * @description What kind of work a span represents, in the app's own vocabulary.
+         * @enum {string}
+         */
+        SpanCategory: "agent" | "llm" | "tool" | "db" | "http" | "other";
+        /**
+         * SpanStatus
+         * @description Outcome of a span, flattened from OpenTelemetry's status code.
+         * @enum {string}
+         */
+        SpanStatus: "ok" | "error" | "unset";
+        /**
+         * TraceDetail
+         * @description A trace summary plus every span in it, ordered by start time.
+         */
+        TraceDetail: {
+            summary: components["schemas"]["TraceSummary"];
+            /** Spans */
+            spans: components["schemas"]["TraceSpan"][];
+        };
+        /**
+         * TraceSpan
+         * @description One span as the trace detail view shows it.
+         */
+        TraceSpan: {
+            /** Span Id */
+            span_id: string;
+            /** Parent Span Id */
+            parent_span_id: string | null;
+            /** Name */
+            name: string;
+            category: components["schemas"]["SpanCategory"];
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Duration Ms */
+            duration_ms: number;
+            status: components["schemas"]["SpanStatus"];
+            /** Error Message */
+            error_message: string | null;
+            /** Model */
+            model: string | null;
+            /** Tool Name */
+            tool_name: string | null;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cost Micro Usd */
+            cost_micro_usd: number;
+            /** Input Preview */
+            input_preview: string | null;
+            /** Output Preview */
+            output_preview: string | null;
+            /** Input Truncated */
+            input_truncated: boolean;
+            /** Output Truncated */
+            output_truncated: boolean;
+            /** Attributes */
+            attributes?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * TraceStats
+         * @description Aggregate figures over a recent window, for the traces page header.
+         */
+        TraceStats: {
+            /** Window Hours */
+            window_hours: number;
+            /** Trace Count */
+            trace_count: number;
+            /** Error Trace Count */
+            error_trace_count: number;
+            /** Llm Call Count */
+            llm_call_count: number;
+            /** Graph Query Count */
+            graph_query_count: number;
+            /** Total Tokens */
+            total_tokens: number;
+            /** Total Cost Micro Usd */
+            total_cost_micro_usd: number;
+            /** P50 Duration Ms */
+            p50_duration_ms: number;
+            /** P95 Duration Ms */
+            p95_duration_ms: number;
+        };
+        /**
+         * TraceSummary
+         * @description One request's worth of spans, rolled up for the traces list.
+         */
+        TraceSummary: {
+            /** Trace Id */
+            trace_id: string;
+            /** Name */
+            name: string;
+            /** Route */
+            route: string | null;
+            /** Agent Name */
+            agent_name: string | null;
+            /** Member Id */
+            member_id: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Duration Ms */
+            duration_ms: number;
+            status: components["schemas"]["SpanStatus"];
+            /** Span Count */
+            span_count: number;
+            /** Llm Count */
+            llm_count: number;
+            /** Tool Count */
+            tool_count: number;
+            /** Db Count */
+            db_count: number;
+            /** Error Count */
+            error_count: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cost Micro Usd */
+            cost_micro_usd: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -769,6 +995,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberSubgraphResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_traces_api_traces_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Keep only successful or only failed traces. */
+                status?: components["schemas"]["SpanStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trace_stats_api_traces_stats_get: {
+        parameters: {
+            query?: {
+                window_hours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceStats"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_trace_api_traces__trace_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceDetail"];
                 };
             };
             /** @description Validation Error */

@@ -12,7 +12,8 @@ dependencies = [
     "fastembed>=0.4",
     "pydantic-ai-slim[ag-ui,anthropic]>=1.44",
     "opentelemetry-sdk>=1.30",
-    "opentelemetry-exporter-otlp-proto-http>=1.30",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
 ]
 
 [dependency-groups]

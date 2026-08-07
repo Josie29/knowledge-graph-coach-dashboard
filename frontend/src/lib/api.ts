@@ -17,6 +17,13 @@ export type PlanSection = components['schemas']['PlanSection']
 export type ExcludedExercise = components['schemas']['ExcludedExercise']
 export type RuleFiring = components['schemas']['RuleFiring']
 
+// Trace store contract, also generated from the backend's Pydantic schemas.
+export type TraceSummary = components['schemas']['TraceSummary']
+export type TraceDetail = components['schemas']['TraceDetail']
+export type TraceSpan = components['schemas']['TraceSpan']
+export type TraceStats = components['schemas']['TraceStats']
+export type SpanCategory = components['schemas']['SpanCategory']
+
 export interface MemberProfile {
   id: string
   name: string
@@ -80,4 +87,59 @@ export async function generateWorkout(request: WorkoutRequest): Promise<WorkoutP
     throw new Error(detail)
   }
   return (await res.json()) as WorkoutPlan
+}
+
+/**
+ * Read a JSON endpoint, surfacing the API's `detail` message on failure.
+ *
+ * @param path - Absolute API path, e.g. `/api/traces`.
+ * @returns The parsed response body.
+ * @throws Error with the API's detail message on a non-2xx status.
+ */
+async function getJson<T>(path: string): Promise<T> {
+  const res = await fetch(path)
+  if (!res.ok) {
+    let detail = `API returned ${res.status}`
+    try {
+      const body = (await res.json()) as { detail?: unknown }
+      if (typeof body.detail === 'string') detail = body.detail
+    } catch {
+      // keep the status-based message
+    }
+    throw new Error(detail)
+  }
+  return (await res.json()) as T
+}
+
+/**
+ * List recent traces, newest first.
+ *
+ * @param limit - Maximum traces to return.
+ * @returns Trace summaries with span counts, tokens, and cost.
+ * @throws Error with the API's detail message on failure.
+ */
+export async function fetchTraces(limit = 50): Promise<TraceSummary[]> {
+  return getJson<TraceSummary[]>(`/api/traces?limit=${limit}`)
+}
+
+/**
+ * Fetch one trace and every span inside it.
+ *
+ * @param traceId - The 32-character hex trace id.
+ * @returns The trace summary plus its spans, ordered by start time.
+ * @throws Error with the API's detail message on failure.
+ */
+export async function fetchTrace(traceId: string): Promise<TraceDetail> {
+  return getJson<TraceDetail>(`/api/traces/${encodeURIComponent(traceId)}`)
+}
+
+/**
+ * Fetch aggregate tracing figures for a recent window.
+ *
+ * @param windowHours - How far back to aggregate.
+ * @returns Counts, token and cost totals, and latency percentiles.
+ * @throws Error with the API's detail message on failure.
+ */
+export async function fetchTraceStats(windowHours = 24): Promise<TraceStats> {
+  return getJson<TraceStats>(`/api/traces/stats?window_hours=${windowHours}`)
 }

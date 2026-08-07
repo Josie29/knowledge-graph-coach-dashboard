@@ -23,6 +23,30 @@ services:
       timeout: 10s
       retries: 20
 
+  # Trace store. Holds LLM calls, tool calls, and graph queries as spans; the
+  # Traces tab reads it. Self-hosted so tracing works with no account and no
+  # keys — the API creates its own schema on startup, so there is no migration
+  # step and nothing to run by hand.
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: traces
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-traces}
+      POSTGRES_DB: traces
+    volumes:
+      - traces-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U traces -d traces"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          # Spans are small and retention is 7 days, so the default shared
+          # buffers are already generous for this workload.
+          memory: 256M
+
   # One-shot: builds the knowledge graph, then exits. Idempotent, so it
   # re-runs on every `docker compose up` and converges to the same graph.
   kg-build:
@@ -57,9 +81,11 @@ services:
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-password}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5}
-      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
-      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
-      LANGFUSE_HOST: ${LANGFUSE_HOST:-https://cloud.langfuse.com}
+      # Swapping this for a sqlite+pysqlite:/// URL is the whole portability
+      # story: no other change is needed to run without this container.
+      OBS_DATABASE_URL: postgresql+psycopg://traces:${POSTGRES_PASSWORD:-traces}@postgres:5432/traces
+      OBS_CAPTURE_CONTENT: ${OBS_CAPTURE_CONTENT:-true}
+      OBS_RETENTION_DAYS: ${OBS_RETENTION_DAYS:-7}
       # The image only contains app/, so data/ is mounted rather than copied.
       # Without this the seed-file fallback in members.py cannot find the
       # context when Neo4j is unreachable.
@@ -69,6 +95,8 @@ services:
       - model-cache:/root/.cache
     depends_on:
       neo4j:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       kg-build:
         condition: service_completed_successfully
@@ -110,3 +138,4 @@ services:
 volumes:
   neo4j-data:
   model-cache:
+  traces-data:

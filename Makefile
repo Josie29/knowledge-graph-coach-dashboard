@@ -55,6 +55,11 @@ banner:
 	else \
 		ai="off -- set ANTHROPIC_API_KEY in .env, then 'make restart'"; \
 	fi; \
+	if [ "$$(field tracing_enabled)" = "true" ]; then \
+		tracing="on -- $$(field traces_recorded) trace(s) recorded so far"; \
+	else \
+		tracing="off -- set OBS_ENABLED=true in .env, then 'make restart'"; \
+	fi; \
 	echo; \
 	echo "  $(RULE)"; \
 	echo "   Knowledge-Graph Coach Dashboard is up"; \
@@ -65,6 +70,7 @@ banner:
 	echo; \
 	echo "   Graph          $$graph"; \
 	echo "   AI features    $$ai"; \
+	echo "   Tracing        $$tracing"; \
 	echo; \
 	echo "   Logs  make logs     Stop  make down"; \
 	echo "  $(RULE)"; \
