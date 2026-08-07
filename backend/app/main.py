@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.copilot import router as copilot_router
+from app.graph import router as graph_router
 from app.members import router as members_router
 from app.observability import TracedAsyncDriver, configure_observability
 from app.workouts import router as workouts_router
@@ -36,6 +37,7 @@ app = FastAPI(title="KG Coach API", lifespan=lifespan)
 app.include_router(members_router)
 app.include_router(workouts_router)
 app.include_router(copilot_router)
+app.include_router(graph_router)
 
 
 class HealthResponse(BaseModel):

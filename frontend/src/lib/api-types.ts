@@ -116,6 +116,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/graph/member/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Member Subgraph
+         * @description Return the member-centric subgraph behind the coach's safety decisions.
+         *
+         *     Two layers in one payload: the stored edges from the member out through
+         *     their injuries to the exercises that load the affected joints, and a
+         *     computed overlay marking which of those exercises a safety rule excludes.
+         *
+         *     Args:
+         *         member_id: Member identifier, e.g. ``mbr_01HX9JORDAN``.
+         *         request: Current request; carries the app-lifetime Neo4j driver.
+         *         include_neighbors: Whether to expand exercises to their concepts.
+         *
+         *     Returns:
+         *         MemberSubgraphResponse whose every edge endpoint resolves to a node in
+         *         the same payload.
+         *
+         *     Raises:
+         *         HTTPException: 404 when the member is not in the graph; 503 when Neo4j
+         *             is unreachable. Unlike the members route there is no seed-file
+         *             fallback — a graph view served from a JSON file would misrepresent
+         *             what the graph actually holds.
+         */
+        get: operations["get_member_subgraph_api_graph_member__member_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -297,6 +336,50 @@ export interface components {
             target_date: string | null;
         };
         /**
+         * GraphEdge
+         * @description One edge in the member subgraph.
+         *
+         *     ``derived`` marks edges the graph does not store — currently only
+         *     ``BLOCKS``, which the safety layer computes. The UI dashes them so the
+         *     picture never implies a relationship that is not in Neo4j.
+         */
+        GraphEdge: {
+            /** Id */
+            id: string;
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+            /** Type */
+            type: string;
+            /**
+             * Derived
+             * @default false
+             */
+            derived: boolean;
+        };
+        /**
+         * GraphNode
+         * @description One node in the member subgraph, normalised for rendering.
+         */
+        GraphNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Type */
+            type: string;
+            /** Properties */
+            properties?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Blocked
+             * @default false
+             */
+            blocked: boolean;
+        };
+        /**
          * GraphPath
          * @description A walked path plus the query that reproduces it (PROV-O ``GraphPath``).
          */
@@ -395,6 +478,24 @@ export interface components {
             profile: components["schemas"]["MemberProfile"];
             /** Goals */
             goals: components["schemas"]["Goal"][];
+        };
+        /**
+         * MemberSubgraphResponse
+         * @description The member-centric subgraph plus what the legend needs.
+         */
+        MemberSubgraphResponse: {
+            /** Member Id */
+            member_id: string;
+            /** Nodes */
+            nodes: components["schemas"]["GraphNode"][];
+            /** Edges */
+            edges: components["schemas"]["GraphEdge"][];
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Notes */
+            notes?: string[];
         };
         /** PlanSection */
         PlanSection: {
@@ -634,6 +735,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_member_subgraph_api_graph_member__member_id__get: {
+        parameters: {
+            query?: {
+                /** @description Include each exercise's muscle groups, equipment, and movement patterns. Turn off for a smaller, more legible graph. */
+                include_neighbors?: boolean;
+            };
+            header?: never;
+            path: {
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberSubgraphResponse"];
                 };
             };
             /** @description Validation Error */

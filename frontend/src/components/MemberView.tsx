@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +9,7 @@ import { HealthIndicator } from '@/components/HealthIndicator'
 import { WorkoutGenerator } from '@/components/WorkoutGenerator'
 import { fetchMember, JORDAN_MEMBER_ID, type Goal, type MemberResponse } from '@/lib/api'
 import type { CoachSession } from '@/lib/session'
+import { cn } from '@/lib/utils'
 
 interface MemberViewProps {
   session: CoachSession
@@ -19,6 +20,19 @@ type MemberState =
   | { kind: 'loading' }
   | { kind: 'loaded'; member: MemberResponse }
   | { kind: 'error'; message: string }
+
+// Lazy: the force-graph renderer is ~700 kB and this is the secondary tab, so
+// the dashboard's first paint should not pay for it.
+const GraphView = lazy(() =>
+  import('@/components/GraphView').then((module) => ({ default: module.GraphView })),
+)
+
+type ViewId = 'dashboard' | 'graph'
+
+const VIEWS: { id: ViewId; label: string }[] = [
+  { id: 'dashboard', label: 'Coaching tools' },
+  { id: 'graph', label: 'Knowledge graph' },
+]
 
 /**
  * Format an ISO date string as a short month-year label, e.g. "Sep 2024".
@@ -54,6 +68,7 @@ function GoalItem({ goal }: { goal: Goal }) {
  */
 export function MemberView({ session, onSignOut }: MemberViewProps) {
   const [state, setState] = useState<MemberState>({ kind: 'loading' })
+  const [view, setView] = useState<ViewId>('dashboard')
 
   useEffect(() => {
     fetchMember(JORDAN_MEMBER_ID)
@@ -73,6 +88,24 @@ export function MemberView({ session, onSignOut }: MemberViewProps) {
           <div className="flex items-center gap-4">
             <span className="text-sm font-semibold">KG Coach Dashboard</span>
             <HealthIndicator />
+            <div role="tablist" className="flex gap-1">
+              {VIEWS.map((entry) => (
+                <button
+                  key={entry.id}
+                  role="tab"
+                  aria-selected={view === entry.id}
+                  onClick={() => setView(entry.id)}
+                  className={cn(
+                    'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                    view === entry.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted',
+                  )}
+                >
+                  {entry.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">
@@ -126,13 +159,28 @@ export function MemberView({ session, onSignOut }: MemberViewProps) {
 
         <Separator />
 
-        <section
-          aria-label="Coaching tools"
-          className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-2"
-        >
-          <WorkoutGenerator memberId={JORDAN_MEMBER_ID} />
-          <Copilot memberId={JORDAN_MEMBER_ID} />
-        </section>
+        {view === 'dashboard' ? (
+          <section
+            aria-label="Coaching tools"
+            className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-2"
+          >
+            <WorkoutGenerator memberId={JORDAN_MEMBER_ID} />
+            <Copilot memberId={JORDAN_MEMBER_ID} />
+          </section>
+        ) : (
+          <section aria-label="Knowledge graph" className="flex flex-1 flex-col">
+            <Suspense
+              fallback={
+                <div className="flex flex-col gap-3">
+                  <Skeleton className="h-6 w-64" />
+                  <Skeleton className="h-[32rem] w-full" />
+                </div>
+              }
+            >
+              <GraphView memberId={JORDAN_MEMBER_ID} />
+            </Suspense>
+          </section>
+        )}
       </main>
     </div>
   )

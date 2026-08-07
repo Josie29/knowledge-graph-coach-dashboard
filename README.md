@@ -298,7 +298,27 @@ before rollout.
 
 ## Seeing the graph
 
-With the stack up, open Neo4j Browser at http://localhost:7474 and run:
+In the app, the **Knowledge graph** tab (top nav, next to Coaching tools) renders the
+member-centric subgraph behind every safety decision: Jordan → her left-knee injury →
+the knee joint → the exercises that load it, with the exercises a safety rule
+contraindicates marked in red. Hovering a node isolates its neighbourhood; clicking one
+opens an inspector showing exactly what the graph stores about it.
+
+Two kinds of edge are drawn, and the difference is the point:
+
+- **Solid** edges are stored in Neo4j (`HAS_INJURY`, `AFFECTS`, `STRESSES`, `TARGETS`, …).
+- **Dashed** edges are *derived at request time* and exist in no database. `RESOLVES_TO`
+  is the resolver mapping the injury's free-text note ("Patellofemoral pain after a
+  hiking trip…") onto the `cond_pfps` concept; `BLOCKS` is a safety rule firing against
+  an exercise. The panel underneath lists the resolution steps that produced them.
+
+The view is served by `GET /api/graph/member/{member_id}` (`backend/app/graph.py`), which
+runs the same `resolve_concepts` → `safe_exercise_pool` path the workout generator uses,
+so the two can never disagree about what is unsafe. It deliberately evaluates safety over
+the whole catalog rather than only the member's available equipment — otherwise a
+contraindicated exercise they happen to lack kit for would render as unblocked.
+
+For ad-hoc queries, open Neo4j Browser at http://localhost:7474 and run:
 
 ```cypher
 // The knee neighbourhood: condition → anatomy closure → joint ← exercises
@@ -314,8 +334,8 @@ RETURN p
 MATCH p = (m:Member)-[r]->(n) RETURN p LIMIT 100
 ```
 
-(A committed screenshot is omitted — this deliverable was produced in a headless
-environment; the queries above reproduce the view in one click.)
+(No screenshot is committed — the Knowledge graph tab renders the same view live, and the
+queries above reproduce it in Neo4j Browser.)
 
 ## How AI was used to build this
 
