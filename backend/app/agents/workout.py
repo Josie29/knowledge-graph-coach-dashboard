@@ -359,25 +359,59 @@ class PlannerDeps:
     time_window_minutes: int
 
 
+def rep_seconds(pooled: PoolExercise) -> float:
+    """How long one rep of this exercise takes, in seconds.
+
+    The catalog's ``estimated_rep_duration`` is **reps per second** despite its
+    name — ``docs/data-overview.md`` used to call it seconds per rep, but the
+    values only cohere inverted: single-leg jump rope carries the catalog's
+    largest value (1.9) and a controlled dumbbell bench press one of its
+    smallest (0.2), which is backwards for a duration and exactly right for a
+    rate. Inverting here, once, keeps that quirk out of every call site.
+
+    Args:
+        pooled: The catalog entry to convert.
+
+    Returns:
+        Seconds per rep, or ``0.0`` for entries carrying no rate (the eight
+        ``is_reps: false`` rows, whose time comes from ``duration_seconds``).
+    """
+    if not pooled.estimated_rep_duration:
+        return 0.0
+    return 1 / pooled.estimated_rep_duration
+
+
 def exercise_seconds(
     pooled: PoolExercise, draft: DraftExercise
 ) -> int:
     """Time estimate for one plan line, from the catalog's rep duration."""
     if pooled.is_reps and draft.reps:
-        work = draft.sets * draft.reps * pooled.estimated_rep_duration
+        work = draft.sets * draft.reps * rep_seconds(pooled)
     else:
         work = draft.sets * (draft.duration_seconds or 0)
     return int(work + draft.sets * draft.rest_seconds + TRANSITION_SECONDS)
 
 
-def plan_minutes(deps: PlannerDeps, draft: PlanDraft) -> float:
+def sections_minutes(
+    deps: PlannerDeps, *sections: list[DraftExercise]
+) -> float:
+    """Estimated minutes for any set of plan sections.
+
+    Split out from ``plan_minutes`` so ``check_plan_duration`` can price a
+    draft the model has not assembled into a ``PlanDraft`` yet, guaranteeing
+    the tool and the validator run the same arithmetic.
+    """
     total = sum(
         exercise_seconds(deps.pool_by_id[d.exercise_id], d)
-        for section in (draft.warmup, draft.main, draft.cooldown)
+        for section in sections
         for d in section
         if d.exercise_id in deps.pool_by_id
     )
     return total / 60
+
+
+def plan_minutes(deps: PlannerDeps, draft: PlanDraft) -> float:
+    return sections_minutes(deps, draft.warmup, draft.main, draft.cooldown)
 
 
 planner_agent = Agent(
@@ -476,10 +510,14 @@ def _pool_prompt(pool: list[PoolExercise], window: int, coach_prompt: str,
         "sec/rep | muscles | patterns):"
     )
     for e in pool:
+        # `rep_seconds`, not the raw catalog value: the column is labelled
+        # seconds and the planner's duration tool prices reps in seconds, so
+        # quoting the raw rate here would put the model's arithmetic and the
+        # validator's out by 4-25x.
         lines.append(
             f"{e.exercise_id} | {e.name} | {e.score:+.2f} | "
             f"{'reps' if e.is_reps else 'duration'} | "
-            f"{e.estimated_rep_duration} | "
+            f"{rep_seconds(e):.1f} | "
             f"{', '.join(e.muscle_groups)} | {', '.join(e.movement_patterns)}"
         )
     return "\n".join(lines)
