@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from datetime import timedelta
 from typing import Any
 
@@ -22,6 +23,7 @@ from opentelemetry.util.types import Attributes
 
 from app.config import settings
 from app.observability.exporter import SqlSpanExporter
+from app.observability.ingest import OPERATION_NAME, OPERATION_SUMMARY
 from app.observability.store import TraceStore
 
 logger = logging.getLogger(__name__)
@@ -176,6 +178,50 @@ def shutdown_observability() -> None:
 def get_store() -> TraceStore | None:
     """Return the configured trace store, if tracing is on."""
     return _store
+
+
+class TracedOperation:
+    """A tool-layer step, recorded as one span with a readable summary."""
+
+    def __init__(self, span: trace.Span) -> None:
+        """Wrap the span this operation is recording into.
+
+        Args:
+            span: The open span.
+        """
+        self._span = span
+
+    def describe(self, summary: str) -> None:
+        """Set the one-line summary the Traces timeline shows for this step.
+
+        Called after the work finishes, because the outcome is what makes a
+        step identifiable — "resolve 'burpees' -> mp_plyometric (vector 0.81)"
+        says something the operation name alone cannot.
+
+        Args:
+            summary: Human-readable outcome, kept short enough to read in a row.
+        """
+        self._span.set_attribute(OPERATION_SUMMARY, summary[:200])
+
+
+@contextmanager
+def traced_operation(operation: str) -> Iterator[TracedOperation]:
+    """Record one logical step of the deterministic tool layer.
+
+    Groups the queries a step issues under a single named row, so a trace reads
+    as "resolve this term" rather than as four indistinguishable Cypher
+    statements. Anything the step runs inside this block nests underneath it.
+
+    Args:
+        operation: Stable name for the step, e.g. ``"resolve_concepts"``.
+
+    Yields:
+        A handle whose ``describe`` sets the row's summary.
+    """
+    with _tracer.start_as_current_span(
+        operation, attributes={OPERATION_NAME: operation}
+    ) as span:
+        yield TracedOperation(span)
 
 
 class RequestSpanMiddleware:

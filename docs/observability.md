@@ -10,20 +10,44 @@ No account, no API key, no SaaS. `make up` is enough.
 One API request is one trace. `POST /api/workout` produces a single trace containing:
 
 ```
-POST /api/workout                          1.8 s
-├─ neo4j.query   (member defaults)          12 ms
-├─ invoke_agent constraint-extractor       410 ms
-│  └─ chat claude-haiku-4-5                405 ms   180 in / 24 out   $0.0002
-├─ neo4j.query   (resolver: exact)           4 ms
-├─ neo4j.query   (resolver: vector)         31 ms
-├─ neo4j.query   (safety: catalog)           9 ms
-└─ invoke_agent workout-planner            1.3 s
-   └─ chat claude-haiku-4-5                1.3 s   2140 in / 380 out  $0.0021
+POST /api/workout                                                    9.49 s
+├─ resolve "patellofemoral pain" -> cond_pfps (exact 1.00)            82 ms
+│  └─ MATCH (c:Concept) WHERE toLower(c.pref_label) = $q ...          81 ms
+├─ resolve "burpees" -> mp_cardio_plyometric (fulltext 6.31)         125 ms
+│  ├─ MATCH (c:Concept) WHERE toLower(c.pref_label) = $q ...           3 ms
+│  └─ CALL db.index.fulltext.queryNodes('concept_text', $q) ...      121 ms
+├─ invoke_agent constraint-extractor                                 2.57 s
+│  └─ chat claude-haiku-4-5                          2.57 s  $0.0012
+├─ safety pool -> 21 of 50 exercises (29 excluded)                   134 ms
+│  ├─ MATCH (e:Exercise) RETURN e{.*} AS exercise ...                 81 ms
+│  ├─ MATCH (r:SafetyRule)-[:CONTRAINDICATED_FOR]->(c:Condition) ...  19 ms
+│  └─ MATCH (c:Condition {id: $condition_id})-[:ANCHORED_AT]-> ...    23 ms
+└─ invoke_agent workout-planner                                      6.20 s
+   └─ chat claude-haiku-4-5                          6.19 s  $0.0067
 ```
+
+Two layers of naming make that readable, and both exist because **span names are
+identifiers, not descriptions**: every resolver step is named `resolve_concepts` and every
+graph query is named `neo4j.query`. So a row shows the summary the backend recorded —
+the step's outcome where there is one, otherwise the statement it ran.
+
+The names are deliberately *not* made descriptive at the source. The sampler's drop-list
+keys on the name `neo4j.query` to discard health-check queries, so renaming spans would
+silently stop that filtering.
 
 A trace is named by **what ran**, not by what was requested: the row above reads
 `constraint-extractor → workout-planner`, with the route as a secondary line. The agents come
 from the trace's spans, not its root span — the root is the HTTP request, which has no agent.
+
+The deterministic tool layer records its own steps through `traced_operation`, which is what
+groups a resolver term's up-to-four passes under one row. Adding a step elsewhere is three
+lines:
+
+```python
+with traced_operation("safe_exercise_pool") as operation:
+    result = await _safe_exercise_pool(driver, constraints)
+    operation.describe(f"safety pool -> {len(result.included)} of 50 exercises")
+```
 
 Expanding a span shows its truncated prompt and completion, its remaining attributes, and
 any error. That is what makes a bad plan debuggable after the fact rather than by re-running

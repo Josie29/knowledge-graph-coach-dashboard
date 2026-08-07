@@ -56,6 +56,8 @@ from typing import Any, Literal
 from neo4j import AsyncDriver
 from pydantic import BaseModel, Field
 
+from app.observability import traced_operation
+
 # Preferences push an exercise down the ranking without touching safety.
 PREFERENCE_SCORE_DELTA = -0.3
 MAX_ALTERNATIVES = 3
@@ -399,6 +401,28 @@ async def safe_exercise_pool(
     Returns:
         PoolResult whose ``included`` list is sorted best-first and whose
         ``excluded`` list accounts for every removed exercise.
+    """
+    with traced_operation("safe_exercise_pool") as operation:
+        result = await _safe_exercise_pool(driver, constraints)
+        operation.describe(
+            f"safety pool -> {len(result.included)} of "
+            f"{len(result.included) + len(result.excluded)} exercises "
+            f"({len(result.excluded)} excluded)"
+        )
+        return result
+
+
+async def _safe_exercise_pool(
+    driver: AsyncDriver, constraints: PoolConstraints
+) -> PoolResult:
+    """Do the catalog fetch, rule evaluation, and filtering.
+
+    Args:
+        driver: Injected Neo4j async driver.
+        constraints: Already-resolved concept IDs.
+
+    Returns:
+        The pool and its provenance, as ``safe_exercise_pool`` documents.
     """
     catalog = await _fetch_catalog(driver)
     condition_ids = [i.condition_id for i in constraints.injuries]

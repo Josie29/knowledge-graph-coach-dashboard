@@ -33,18 +33,20 @@ const MAX_DEPTH = 5
 /**
  * Label a span with something that distinguishes it from its siblings.
  *
- * Every graph span is named `neo4j.query`, so a 3 ms exact-match lookup and a
- * 125 ms vector search are indistinguishable in the timeline. The first line of
- * the statement is already recorded, and it is what actually tells a resolver
- * pass apart from the safety-catalog fetch — so show that instead of the name.
+ * Span names are stable identifiers, not descriptions — every graph span is
+ * `neo4j.query` and every resolver step is `resolve_concepts` — so a row falls
+ * back through the summaries the backend records: the step's own outcome
+ * first ("resolve 'burpees' -> mp_plyometric"), then the Cypher it ran.
  *
  * @param span - The span being rendered.
  * @returns The text for the span's row.
  */
 function spanLabel(span: TraceSpan): string {
-  if (span.category !== 'db') return span.name
+  const summary = span.attributes?.['kg_coach.summary']
+  if (typeof summary === 'string' && summary) return summary
   const statement = span.attributes?.['db.statement.summary']
-  return typeof statement === 'string' && statement ? statement : span.name
+  if (typeof statement === 'string' && statement) return statement
+  return span.name
 }
 
 interface PositionedSpan {

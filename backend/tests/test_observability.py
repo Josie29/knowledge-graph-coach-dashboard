@@ -713,6 +713,51 @@ def test_the_header_figures_describe_the_traces_being_shown(
     assert ai_only.total_tokens == everything.total_tokens == 40
 
 
+async def test_tool_layer_steps_group_and_name_the_queries_they_issue() -> None:
+    """Catches the bug that makes the resolver undebuggable from its own trace.
+
+    One workout resolves a dozen terms, and every resolver pass runs the same
+    Cypher with a different parameter — so without a named parent step the
+    timeline is a run of identical rows, and parameters are deliberately not
+    recorded, so expanding them does not help either. The step's summary is the
+    only thing that says which term resolved to what.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from app.observability import (
+        TracedAsyncDriver,
+        shutdown_observability,
+        traced_operation,
+    )
+
+    class FakeDriver:
+        async def execute_query(self, query: str, **kwargs: Any) -> Any:
+            return ([], None, None)
+
+    with TestClient(app):  # running lifespan installs the tracer provider
+        trace_store: TraceStore = app.state.trace_store
+        with trace_store.engine.begin() as conn:
+            conn.execute(sa.delete(spans_table))
+
+        driver = TracedAsyncDriver(FakeDriver())
+        with traced_operation("resolve_concepts") as operation:
+            await driver.execute_query("MATCH (c:Concept) WHERE toLower(c.x) = $q")
+            operation.describe('resolve "burpees" -> mp_plyometric (vector 0.81)')
+        shutdown_observability()
+
+        spans = trace_store.get_trace(trace_store.list_traces()[0].trace_id).spans
+
+    step = next(span for span in spans if span.category is SpanCategory.TOOL)
+    query = next(span for span in spans if span.category is SpanCategory.DB)
+    assert step.tool_name == "resolve_concepts"
+    assert step.attributes["kg_coach.summary"] == (
+        'resolve "burpees" -> mp_plyometric (vector 0.81)'
+    )
+    # Grouping is the point: the queries must hang off the step, not the root.
+    assert query.parent_span_id == step.span_id
+
+
 def test_graph_spans_keep_the_statement_that_identifies_them(
     store: TraceStore, exporter: SqlSpanExporter
 ) -> None:
