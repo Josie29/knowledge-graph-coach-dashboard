@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,6 +24,22 @@ import {
 interface WorkoutGeneratorProps {
   memberId: string
 }
+
+/**
+ * Starter prompts for the coach prompt field. Each one exercises a different
+ * part of the constraint pipeline — muscle/region resolution, the injury
+ * traversal through the anatomy hierarchy, equipment substitution, an explicit
+ * exclusion, and a movement-pattern veto — so the trace shows something
+ * different every time. Wording stays free of durations; the time window is
+ * its own input.
+ */
+const SUGGESTED_PROMPTS = [
+  'Full-body session with isolation work around the pecs',
+  "Lower-body strength that won't aggravate her left knee",
+  'Upper-body push and pull — no barbell, only dumbbells and a kettlebell',
+  'Posterior chain and glutes, but exclude deadlifts',
+  'Low-impact conditioning and core work, nothing with jumping',
+]
 
 type GeneratorState =
   | { kind: 'idle' }
@@ -186,6 +202,7 @@ export function WorkoutGenerator({ memberId }: WorkoutGeneratorProps) {
   const [timeWindow, setTimeWindow] = useState(50)
   const [adjustment, setAdjustment] = useState('')
   const [state, setState] = useState<GeneratorState>({ kind: 'idle' })
+  const promptRef = useRef<HTMLTextAreaElement | null>(null)
 
   const busy = state.kind === 'loading'
   const currentPlan =
@@ -233,11 +250,30 @@ export function WorkoutGenerator({ memberId }: WorkoutGeneratorProps) {
             <Label htmlFor="workout-prompt">Coach prompt</Label>
             <Textarea
               id="workout-prompt"
+              ref={promptRef}
               placeholder="e.g. Lower body strength session, easy on the knee"
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               disabled={busy}
             />
+            <div className="flex flex-wrap gap-1.5 pt-0.5" aria-label="Suggested prompts">
+              {SUGGESTED_PROMPTS.map((suggestion) => (
+                <Button
+                  key={suggestion}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 rounded-full px-3 text-xs"
+                  disabled={busy}
+                  onClick={() => {
+                    setPrompt(suggestion)
+                    promptRef.current?.focus()
+                  }}
+                >
+                  {suggestion}
+                </Button>
+              ))}
+            </div>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1.5">
