@@ -168,11 +168,11 @@ One member, eleven top-level sections. `_note` is a disclaimer string; the rest 
 | `equipment_available` | string[] | 5 | Hard feasibility filter on the catalog |
 | `injuries` | array of objects | 1 | Hard safety filter + ontology hook |
 | `workout_history` | array of objects | 4 | Recency, volume, RPE trend |
-| `adherence` | object | 4 weeks + trend | Churn signal |
+| `adherence` | object | 4 weeks + trend | Churn signal — two of the four scored signals read this |
 | `biomarkers` | object | 4 metrics | Readiness / recovery |
 | `labs` | object | 2 panels | Long-horizon health context |
 | `chat_history` | array of objects | 4 | Retrieval corpus for the copilot |
-| `coach_brief` | object | 2 tasks + churn risk | Morning-brief surface |
+| `coach_brief` | object | 2 tasks + churn risk | Morning-brief surface; the churn block is **not ingested** (q11) |
 
 ### 2.1 Profile
 
@@ -296,6 +296,11 @@ Churn risk: **elevated**, for three reasons — adherence fell 100% → 50% over
 session with a fatigue/work explanation; login frequency down vs. prior month. The third reason has
 no backing field anywhere in the dataset.
 
+Because of that third reason this block is **not loaded into the graph**. Churn risk is computed
+from `adherence` and `workout_history` instead, onto a `:ChurnAssessment` node — the sample member
+scores 6 of 10 and still lands on `elevated`, but with three reasons that each name a field that
+exists. Method: [`docs/churn-risk-classification.md`](./churn-risk-classification.md).
+
 ---
 
 ## 3. Where the two datasets join
@@ -367,7 +372,7 @@ work or lets jumps through, depending on which way it errs.
 | 8 | Every unilateral exercise is `left_*`. There is no `right_*` anywhere. | `exercises.json` | A per-side program has to synthesize the right side. |
 | 9 | `dislikes` are `Deadlift` and `Burpees` — **neither appears in the catalog**, and the nearest relatives (KB Romanian Deadlift in history, the three plyometric jumps) don't match by string. | Cross-dataset | Literal exclusion is a no-op. Needs semantic matching. |
 | 10 | All 9 exercise names in `workout_history` are **absent from the catalog** (Goblet Squat (box-supported), Hip Thrust, Banded Lateral Walk, DB Floor Press, …). | Cross-dataset | History cannot be joined to the catalog by name. Treat it as free text, or map it. |
-| 11 | Churn reason "login frequency down vs. prior month" has no supporting field in the data. | `member-context.json` | The copilot will either hallucinate a number or have to cite the brief as its own source. |
+| 11 | Churn reason "login frequency down vs. prior month" has no supporting field in the data. | `member-context.json` | The copilot would either hallucinate a number or cite the brief as its own source. **Resolved** by dropping the file's churn block and computing the level from adherence + workout history instead ([method](./churn-risk-classification.md)). |
 | 12 | Lab panels ship values with no reference ranges or units metadata beyond the key suffixes. | `member-context.json` | Any "high/low/normal" verdict requires an external, citable source. |
 | 13 | Dates run to mid-2026 and `injuries.since` is 2026-05-10; the brief is generated for 2026-06-04. | `member-context.json` | Don't compute recency against the real wall clock — anchor to 2026-06-04. |
 | 14 | `attachments` is present on one chat message and absent (not `null`) on the rest. | `member-context.json` | Use `.get()` semantics; a strict schema with a required key fails. |

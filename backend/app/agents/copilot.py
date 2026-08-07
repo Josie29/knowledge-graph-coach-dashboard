@@ -13,8 +13,10 @@ requests charts declaratively and the browser renders them.
 Grounding rules (enforced by instruction, verified by the citations field):
 
 - every number cited must come from a ContextSlice the agent fetched;
-- the "login frequency" churn reason has no backing field anywhere in the
-  data (quirk 11) — it may only be attributed to the coach brief itself;
+- churn risk is computed (see ``app.kg.churn``), so its ``reasons`` list is
+  the complete set of churn facts the graph holds — the agent may not add
+  signals to it, which is what keeps the dataset's unbacked "login frequency"
+  claim (quirk 11) out of answers;
 - no lab reference ranges ship with the data (quirk 12) — high/low/normal
   verdicts must either cite an explicitly-external range or be hedged.
 
@@ -32,6 +34,8 @@ from neo4j import AsyncDriver
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
 
+from app.kg.churn import ChurnRiskLevel
+
 # ---------------------------------------------------------------------------
 # ContextSlice — the retrieval tool's typed result
 # ---------------------------------------------------------------------------
@@ -46,6 +50,7 @@ SectionName = Literal[
     "workout_history",
     "chat_history",
     "coach_brief",
+    "churn_risk",
     "injuries",
     "equipment",
 ]
@@ -60,6 +65,7 @@ ALL_SECTIONS: tuple[SectionName, ...] = (
     "workout_history",
     "chat_history",
     "coach_brief",
+    "churn_risk",
     "injuries",
     "equipment",
 )
@@ -84,9 +90,19 @@ class LabPanelSlice(BaseModel):
 
 class CoachBriefSlice(BaseModel):
     generated_for: str
-    churn_risk_level: str
-    churn_risk_reasons: list[str]
     tasks: list[dict[str, str]]
+
+
+class ChurnRiskSlice(BaseModel):
+    """The computed churn classification. See docs/churn-risk-classification.md."""
+
+    level: ChurnRiskLevel
+    score: int
+    max_score: int
+    reasons: list[str] = Field(
+        description="One sentence per warning sign that fired, each naming the "
+        "value that triggered it. These are the only churn facts in the graph."
+    )
 
 
 class ContextSlice(BaseModel):
@@ -106,6 +122,7 @@ class ContextSlice(BaseModel):
     workout_history: list[dict[str, str | int | bool | list[str] | None]] | None = None
     chat_history: list[dict[str, str | bool | list[str] | None]] | None = None
     coach_brief: CoachBriefSlice | None = None
+    churn_risk: ChurnRiskSlice | None = None
     injuries: list[dict[str, str | None]] | None = None
     equipment: list[str] | None = None
 
@@ -185,9 +202,11 @@ async def fetch_context_slice(
         ".rpe, .exercise_names}] AS workouts, "
         "[(m)-[:HAS_CHAT_MESSAGE]->(c) | c{.ts, .sender, .text, .has_attachments, "
         ".attachment_types, .attachment_captions}] AS chat, "
-        "[(m)-[:HAS_BRIEF]->(br) | br{.generated_for, .churn_risk_level, "
-        ".churn_risk_reasons, tasks: [(br)-[:HAS_TASK]->(t) | "
+        "[(m)-[:HAS_BRIEF]->(br) | br{.generated_for, "
+        "tasks: [(br)-[:HAS_TASK]->(t) | "
         "t{.type, .text, .position}]}] AS briefs, "
+        "[(m)-[:HAS_CHURN_ASSESSMENT]->(c) | c{.level, .score, .max_score, "
+        ".reasons}] AS churn, "
         "[(m)-[:HAS_INJURY]->(i) | i{.region, .joint, .status, .severity, "
         ".since, .notes}] AS injuries, "
         "[(m)-[:HAS_EQUIPMENT]->(q) | q.catalog_term] AS equipment",
@@ -250,12 +269,18 @@ async def fetch_context_slice(
         brief = record["briefs"][0]
         slice_.coach_brief = CoachBriefSlice(
             generated_for=str(brief["generated_for"]),
-            churn_risk_level=brief["churn_risk_level"],
-            churn_risk_reasons=list(brief["churn_risk_reasons"]),
             tasks=[
                 {"type": t["type"], "text": t["text"]}
                 for t in sorted(brief["tasks"], key=lambda t: t["position"])
             ],
+        )
+    if "churn_risk" in wanted and record["churn"]:
+        churn = record["churn"][0]
+        slice_.churn_risk = ChurnRiskSlice(
+            level=ChurnRiskLevel(churn["level"]),
+            score=churn["score"],
+            max_score=churn["max_score"],
+            reasons=list(churn["reasons"]),
         )
     if "injuries" in wanted:
         slice_.injuries = record["injuries"]
@@ -283,10 +308,15 @@ copilot_agent = Agent(
         "Compute 'this week' / 'since last week' / recency against it, "
         "never the real current date.\n"
         "\n"
-        "Churn: the coach brief's churn reason about login frequency has no "
-        "backing data anywhere in the graph. If you mention it, attribute it "
-        "explicitly to the coach brief ('the brief cites...'), never as an "
-        "observed fact.\n"
+        "Churn: the churn_risk section is COMPUTED from the member's "
+        "adherence and workout history, not a coach's opinion. Its `reasons` "
+        "are the complete audit trail: put every reason you used into "
+        "`citations` as well (they are values you relied on, like any other), "
+        "and never add a churn signal that is not in that list - login or "
+        "app-usage frequency, for instance, is not tracked anywhere in this "
+        "data. It is a point-scored heuristic, not a prediction: say the "
+        "member 'is showing N warning signs' or 'scores X of Y', never that "
+        "they 'will churn'.\n"
         "\n"
         "Labs: the member's lab values ship WITHOUT reference ranges. Never "
         "flatly declare a value high/low/normal. Either hedge ('7 of the "
@@ -315,7 +345,8 @@ async def member_context(
         sections: Which sections the question needs — fetch only those.
             Available: profile, goals, adherence, biomarkers (incl. sleep),
             weight_trend, labs, workout_history, chat_history, coach_brief
-            (incl. churn risk), injuries, equipment.
+            (morning tasks), churn_risk (computed level + scored reasons),
+            injuries, equipment.
     """
     return await fetch_context_slice(
         ctx.deps.driver, ctx.deps.member_id, sections

@@ -37,9 +37,12 @@ Data quirks handled here (numbering from docs/data-overview.md §4):
     q6  ``joints_loaded`` is deduped (one row lists ``shoulder`` twice).
     q10 Workout-history exercise names join to nothing in the catalog — they
         are stored as a free-text array on the session node, never linked.
-    q11 The "login frequency" churn reason has no backing field anywhere; it
-        is stored only as text on the CoachBrief node, so the copilot's only
-        citable source for it is the brief itself.
+    q11 The file's ``coach_brief.churn_risk`` block is dropped, not ingested.
+        One of its three reasons ("login frequency down") has no backing field
+        anywhere in the dataset, so the brief could only ever have been cited
+        as its own source. Churn risk is computed instead, from adherence and
+        workout history, onto a :ChurnAssessment node — every reason it emits
+        names a value that exists. See docs/churn-risk-classification.md.
     q13 "Now" is anchored to the coach brief's generated_for date
         (2026-06-04), stored as ``Member.now_anchor`` — recency and trend
         computations must use it, never the wall clock.
@@ -69,6 +72,7 @@ for _candidate in (_REPO_ROOT / "backend", _REPO_ROOT):
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, SKOS
 
+from app.kg.churn import assess_churn_risk
 from app.kg.embeddings import EMBEDDING_DIM, embed_texts
 
 ONTOLOGY_DIR_NAME = "ontology"
@@ -550,6 +554,7 @@ EXPECTED_KG2 = {
     "lab_results": 12,
     "chat_messages": 4,
     "brief_tasks": 2,
+    "churn_assessments": 1,
 }
 
 
@@ -648,14 +653,21 @@ def load_member_context(data_dir: Path) -> dict[str, Any]:
         )
 
     brief_id = f"brief_{brief['generated_for']}"
+    # q11: the file's own `coach_brief.churn_risk` block is deliberately NOT
+    # ingested. One of its three reasons (login frequency) has no backing field
+    # anywhere in the dataset, so the brief could only ever be cited as its own
+    # source. Churn risk is computed instead — see docs/churn-risk-classification.md.
     brief_props = {
         "id": brief_id,
         "generated_for": brief["generated_for"],
-        "churn_risk_level": brief["churn_risk"]["level"],
-        # q11: the third reason (login frequency) has no backing field in the
-        # dataset; this text IS the only citable source for it.
-        "churn_risk_reasons": brief["churn_risk"]["reasons"],
     }
+
+    churn = assess_churn_risk(
+        doc["adherence"]["weekly_completion_pct"],
+        doc["workout_history"],
+        member_props["now_anchor"],
+    )
+    churn_props = churn.to_graph_props(f"churn_{brief['generated_for']}")
     brief_tasks = [
         {"id": f"{brief_id}_task_{i}", "type": t["type"], "text": t["text"],
          "position": i}
@@ -682,6 +694,7 @@ def load_member_context(data_dir: Path) -> dict[str, Any]:
         "chat_messages": chat_messages,
         "brief": brief_props,
         "brief_tasks": brief_tasks,
+        "churn_assessment": churn_props,
     }
 
 
@@ -746,6 +759,7 @@ def load_kg2_neo4j(session: Any, member: dict[str, Any], reset: bool) -> None:
     )
     link("ChatMessage", "HAS_CHAT_MESSAGE", member["chat_messages"])
     link("CoachBrief", "HAS_BRIEF", [member["brief"]])
+    link("ChurnAssessment", "HAS_CHURN_ASSESSMENT", [member["churn_assessment"]])
     session.run(
         "UNWIND $rows AS row MATCH (b:CoachBrief {id: $brief_id}) "
         "MERGE (t:BriefTask:MemberFact {id: row.id}) SET t += row "
@@ -801,7 +815,8 @@ def _verify_kg2(session: Any, member_id: str) -> None:
         "count{(m)-[:HAS_WEIGHT_SAMPLE]->()} AS weight_samples, "
         "count{(m)-[:HAS_LAB_PANEL]->()-[:HAS_RESULT]->()} AS lab_results, "
         "count{(m)-[:HAS_CHAT_MESSAGE]->()} AS chat_messages, "
-        "count{(m)-[:HAS_BRIEF]->()-[:HAS_TASK]->()} AS brief_tasks"
+        "count{(m)-[:HAS_BRIEF]->()-[:HAS_TASK]->()} AS brief_tasks, "
+        "count{(m)-[:HAS_CHURN_ASSESSMENT]->()} AS churn_assessments"
     )
     record = session.run(counts_query, id=member_id).single()
     failures = [

@@ -110,7 +110,8 @@ tries. Safety is a graph property, not a prompt instruction.
 ## The graphs, briefly
 
 Full schema and the left-out analysis: **[docs/kg1-schema.md](docs/kg1-schema.md)** ·
-dataset field guide: **[docs/data-overview.md](docs/data-overview.md)**.
+dataset field guide: **[docs/data-overview.md](docs/data-overview.md)** ·
+churn scoring method: **[docs/churn-risk-classification.md](docs/churn-risk-classification.md)**.
 
 **KG 1** — 9 node types: `Exercise` (50), the four catalog vocabularies
 (`MuscleGroup` 19, `Joint` 9, `MovementPattern` 36, `Equipment` 32, all carrying a
@@ -129,8 +130,9 @@ even has a concept for *plyometric/impact loading*, the single most load-bearing
 concept in the dataset, so it is minted locally with a documented `declined` analysis.
 
 **KG 2** — `Member` plus goals, injuries, workout sessions, adherence weeks, biomarkers,
-weight samples, lab panels/results, chat messages, and the coach brief with churn risk.
-Cross-links into KG 1: `HAS_EQUIPMENT → Equipment` and `inj_knee_left —AFFECTS→ jt_knee`
+weight samples, lab panels/results, chat messages, the coach brief (morning tasks), and a
+computed `ChurnAssessment` — a point-scored level whose reasons each cite a real field,
+replacing the dataset's hand-written churn block. Cross-links into KG 1: `HAS_EQUIPMENT → Equipment` and `inj_knee_left —AFFECTS→ jt_knee`
 (which carries its SNOMED mapping). "Now" is anchored to the brief's date (2026-06-04)
 on the member node — trend math never touches the wall clock.
 
@@ -239,7 +241,7 @@ catalogs 14 quirks. Where each one is handled:
 | Lopsided pattern taxonomy (q7) | Faceted curation instead of splitting on `" - "` |
 | Dislikes match nothing literally (q9) | Resolver lands them on curated pattern synonyms; **down-ranked, never safety-excluded** |
 | History names join nothing (q10) | Stored as free text on session nodes; never joined |
-| Unbacked "login frequency" churn reason (q11) | Lives only as brief text; the copilot must attribute it to the brief, and the UI labels it |
+| Unbacked "login frequency" churn reason (q11) | The file's churn block is **not ingested**; churn risk is computed from adherence and workout history instead, so every reason names a real field ([docs](docs/churn-risk-classification.md)) |
 | Labs without reference ranges (q12) | The copilot must hedge or cite an explicitly-external range |
 | Dates run to mid-2026 (q13) | `now_anchor=2026-06-04` on the member node; all trend math uses it |
 | `attachments` absent-not-null (q14) | `.get()` semantics at ingest |

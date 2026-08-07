@@ -47,6 +47,23 @@ const MEMBER_PROMPTS = [
 ]
 const CHART_PROMPTS = ['Plot adherence trend', 'Show message pattern', 'Compare last 4 weeks']
 
+type ChurnLevel = NonNullable<ContextSlice['churn_risk']>['level']
+
+// Churn is a three-band computed score (see docs/churn-risk-classification.md),
+// so both the badge and the brief panel key off the level rather than testing
+// for 'elevated' — a moderate member must read as a caution, not an all-clear.
+const CHURN_BADGE: Record<ChurnLevel, 'destructive' | 'secondary' | 'outline'> = {
+  elevated: 'destructive',
+  moderate: 'secondary',
+  low: 'outline',
+}
+
+const CHURN_PANEL: Record<ChurnLevel, string> = {
+  elevated: 'border-destructive/40 bg-destructive/5',
+  moderate: 'border-border bg-muted/40',
+  low: 'border-border',
+}
+
 type Tab = 'chat' | 'brief' | 'history'
 
 /** Tiny markdown-ish renderer: paragraphs, **bold**, and `-` bullet lines. */
@@ -270,6 +287,7 @@ function ChatTab({ memberId }: { memberId: string }) {
 
 function BriefTab({ slice }: { slice: ContextSlice }) {
   const brief = slice.coach_brief
+  const churn = slice.churn_risk
   if (!brief) return <p className="text-sm text-muted-foreground">No brief in the graph.</p>
   return (
     <div className="flex flex-col gap-3">
@@ -289,21 +307,28 @@ function BriefTab({ slice }: { slice: ContextSlice }) {
           </li>
         ))}
       </ul>
-      <div className="flex flex-col gap-1 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
-        <p className="text-sm font-medium">
-          Churn risk: <span className="uppercase">{brief.churn_risk_level}</span>
-        </p>
-        <ul className="ml-4 list-disc text-xs text-muted-foreground">
-          {brief.churn_risk_reasons.map((reason, index) => (
-            <li key={index}>
-              {reason}
-              {reason.toLowerCase().includes('login') && (
-                <span className="italic"> — per the coach brief; no backing data in the graph</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {churn && (
+        <div className={`flex flex-col gap-1 rounded-md border px-3 py-2 ${CHURN_PANEL[churn.level]}`}>
+          <p className="text-sm font-medium">
+            Churn risk: <span className="uppercase">{churn.level}</span>{' '}
+            <span className="font-normal text-muted-foreground">
+              ({churn.score} of {churn.max_score} points)
+            </span>
+          </p>
+          {churn.reasons.length > 0 ? (
+            <ul className="ml-4 list-disc text-xs text-muted-foreground">
+              {churn.reasons.map((reason, index) => (
+                <li key={index}>{reason}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-muted-foreground">No warning signs firing.</p>
+          )}
+          <p className="text-xs italic text-muted-foreground">
+            Computed from adherence and workout history — not a coach's judgement.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -361,14 +386,14 @@ export function Copilot({ memberId }: CopilotProps) {
   const [sliceError, setSliceError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchContextSlice(memberId, ['coach_brief', 'chat_history'])
+    fetchContextSlice(memberId, ['coach_brief', 'churn_risk', 'chat_history'])
       .then(setSlice)
       .catch((err: unknown) =>
         setSliceError(err instanceof Error ? err.message : 'Failed to load context'),
       )
   }, [memberId])
 
-  const churnLevel = slice?.coach_brief?.churn_risk_level
+  const churn = slice?.churn_risk
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'chat', label: 'Chat' },
@@ -381,9 +406,9 @@ export function Copilot({ memberId }: CopilotProps) {
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>AI Copilot</CardTitle>
-          {churnLevel && (
-            <Badge variant={churnLevel === 'elevated' ? 'destructive' : 'secondary'}>
-              churn risk: {churnLevel}
+          {churn && (
+            <Badge variant={CHURN_BADGE[churn.level]}>
+              churn risk: {churn.level} ({churn.score}/{churn.max_score})
             </Badge>
           )}
         </div>

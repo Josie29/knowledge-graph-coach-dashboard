@@ -1,9 +1,20 @@
 import { HttpAgent } from '@ag-ui/client'
-import type { components } from '@/lib/api-types'
+import type { components, operations } from '@/lib/api-types'
 
 /** Member-context slice served by GET /api/members/{id}/context. */
 export type ContextSlice = components['schemas']['ContextSlice']
 export type CoachBriefSlice = components['schemas']['CoachBriefSlice']
+
+/**
+ * The sections `fetchContextSlice` may ask for, taken from the generated query
+ * type so a misspelled name fails the build instead of silently returning an
+ * empty slice.
+ */
+export type SectionName = NonNullable<
+  NonNullable<
+    operations['member_context_slice_api_members__member_id__context_get']['parameters']['query']
+  >['sections']
+>[number]
 
 // The copilot's typed output streams over AG-UI (no OpenAPI response model),
 // so these mirror backend/app/agents/copilot.py's CopilotAnswer union.
@@ -71,7 +82,7 @@ export function createCopilotAgent(memberId: string): HttpAgent {
  */
 export async function fetchContextSlice(
   memberId: string,
-  sections: string[],
+  sections: SectionName[],
 ): Promise<ContextSlice> {
   const params = new URLSearchParams()
   for (const section of sections) params.append('sections', section)

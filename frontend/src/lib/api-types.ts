@@ -311,14 +311,32 @@ export interface components {
             /** Sleep Hours Last 7 Days */
             sleep_hours_last_7_days: number[];
         };
+        /**
+         * ChurnRiskLevel
+         * @description The band a member's churn score falls into.
+         * @enum {string}
+         */
+        ChurnRiskLevel: "low" | "moderate" | "elevated";
+        /**
+         * ChurnRiskSlice
+         * @description The computed churn classification. See docs/churn-risk-classification.md.
+         */
+        ChurnRiskSlice: {
+            level: components["schemas"]["ChurnRiskLevel"];
+            /** Score */
+            score: number;
+            /** Max Score */
+            max_score: number;
+            /**
+             * Reasons
+             * @description One sentence per warning sign that fired, each naming the value that triggered it. These are the only churn facts in the graph.
+             */
+            reasons: string[];
+        };
         /** CoachBriefSlice */
         CoachBriefSlice: {
             /** Generated For */
             generated_for: string;
-            /** Churn Risk Level */
-            churn_risk_level: string;
-            /** Churn Risk Reasons */
-            churn_risk_reasons: string[];
             /** Tasks */
             tasks: {
                 [key: string]: string;
@@ -383,6 +401,7 @@ export interface components {
                 [key: string]: string | boolean | string[] | null;
             }[] | null;
             coach_brief?: components["schemas"]["CoachBriefSlice"] | null;
+            churn_risk?: components["schemas"]["ChurnRiskSlice"] | null;
             /** Injuries */
             injuries?: {
                 [key: string]: string | null;
@@ -922,7 +941,7 @@ export interface operations {
     member_context_slice_api_members__member_id__context_get: {
         parameters: {
             query?: {
-                sections?: ("profile" | "goals" | "adherence" | "biomarkers" | "weight_trend" | "labs" | "workout_history" | "chat_history" | "coach_brief" | "injuries" | "equipment")[];
+                sections?: ("profile" | "goals" | "adherence" | "biomarkers" | "weight_trend" | "labs" | "workout_history" | "chat_history" | "coach_brief" | "churn_risk" | "injuries" | "equipment")[];
             };
             header?: never;
             path: {

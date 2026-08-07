@@ -125,6 +125,7 @@
                   "workout_history",
                   "chat_history",
                   "coach_brief",
+                  "churn_risk",
                   "injuries",
                   "equipment"
                 ],
@@ -140,6 +141,7 @@
                 "workout_history",
                 "chat_history",
                 "coach_brief",
+                "churn_risk",
                 "injuries",
                 "equipment"
               ],
@@ -542,22 +544,53 @@
         ],
         "title": "BiomarkerSlice"
       },
+      "ChurnRiskLevel": {
+        "type": "string",
+        "enum": [
+          "low",
+          "moderate",
+          "elevated"
+        ],
+        "title": "ChurnRiskLevel",
+        "description": "The band a member's churn score falls into."
+      },
+      "ChurnRiskSlice": {
+        "properties": {
+          "level": {
+            "$ref": "#/components/schemas/ChurnRiskLevel"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "max_score": {
+            "type": "integer",
+            "title": "Max Score"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons",
+            "description": "One sentence per warning sign that fired, each naming the value that triggered it. These are the only churn facts in the graph."
+          }
+        },
+        "type": "object",
+        "required": [
+          "level",
+          "score",
+          "max_score",
+          "reasons"
+        ],
+        "title": "ChurnRiskSlice",
+        "description": "The computed churn classification. See docs/churn-risk-classification.md."
+      },
       "CoachBriefSlice": {
         "properties": {
           "generated_for": {
             "type": "string",
             "title": "Generated For"
-          },
-          "churn_risk_level": {
-            "type": "string",
-            "title": "Churn Risk Level"
-          },
-          "churn_risk_reasons": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Churn Risk Reasons"
           },
           "tasks": {
             "items": {
@@ -573,8 +606,6 @@
         "type": "object",
         "required": [
           "generated_for",
-          "churn_risk_level",
-          "churn_risk_reasons",
           "tasks"
         ],
         "title": "CoachBriefSlice"
@@ -814,6 +845,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/CoachBriefSlice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "churn_risk": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChurnRiskSlice"
               },
               {
                 "type": "null"
