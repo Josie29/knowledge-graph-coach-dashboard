@@ -9,7 +9,8 @@ Two graphs power two surfaces:
 
 - **KG 1 (movement/clinical)** — 50 catalog exercises joined to a curated ontology subset
   (SNOMED CT anatomy, OPE/COPPER alignments, SKOS mappings, PROV-O provenance) with 22
-  mechanics-based contraindication rules.
+  mechanics-based contraindication rules. ([Abbreviations](#abbreviations) if any of that
+  is unfamiliar.)
 - **KG 2 (member context)** — one member's profile, goals, injuries, equipment, workout
   history, adherence, biomarkers, labs, chat, and coach brief, cross-linked into KG 1.
 
@@ -363,6 +364,26 @@ pipeline, validators, and streaming protocol are exercised end-to-end without an
 key. The curated ontology mappings in `data/ontology/` were verified against the live
 NCI EVS / BioPortal APIs at curation time rather than recalled. All AI-written code went
 through the same checks as any code: `pytest`, `tsc`, lint, and the golden scenarios.
+
+## Abbreviations
+
+| Term | Meaning |
+|---|---|
+| AG-UI | Agent–User Interaction protocol — Pydantic AI's streaming transport to the browser (over SSE) |
+| COPPER | BioPortal ontology of physical-activity and behaviour-change concepts; a narrow slice (activity types, pain barriers) is aligned here |
+| KG | Knowledge graph — KG 1 is movement/clinical, KG 2 is member context |
+| NCI EVS | National Cancer Institute Enterprise Vocabulary Services — the API the SNOMED CT codes were verified against |
+| NCIT | NCI Thesaurus — the anatomy/injury vocabulary OPE imports (614 classes) |
+| ONNX | Open Neural Network Exchange — the model format fastembed runs locally |
+| OPE | Ontology of Physical Exercises (BioPortal, 2013) — supplies exercise property vocabulary; only 19 native classes |
+| PFPS | Patellofemoral pain syndrome — the sample member's knee condition (`cond_pfps`) |
+| PROV-O | W3C Provenance Ontology — models who or what asserted each decision (rule engine vs. LLM vs. coach) |
+| RDF / Turtle | Resource Description Framework and its text serialization (`.ttl`) — the triples rdflib emits at build time |
+| SKOS | Simple Knowledge Organization System — the mapping vocabulary (`exactMatch`, `closeMatch`, `broader`, `related`) linking catalog terms to ontology concepts |
+| SNOMED CT | Systematized Nomenclature of Medicine – Clinical Terms — the clinical terminology supplying anatomy and conditions |
+
+Prefixes and full IRIs for every vocabulary above live in
+[`data/ontology/namespaces.json`](data/ontology/namespaces.json).
 
 ## Layout
 
