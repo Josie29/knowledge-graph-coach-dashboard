@@ -127,7 +127,7 @@ class PoolExercise(BaseModel):
     name: str
     score: float = 0.0
     supports_weight: bool
-    estimated_rep_duration: float
+    rep_seconds: float
     is_reps: bool
     muscle_groups: list[str]
     movement_patterns: list[str]
@@ -553,7 +553,7 @@ async def _safe_exercise_pool(
                 name=name,
                 score=round(score, 4),
                 supports_weight=exercise["supports_weight"],
-                estimated_rep_duration=exercise["estimated_rep_duration"],
+                rep_seconds=exercise["rep_seconds"],
                 is_reps=exercise["is_reps"],
                 muscle_groups=sorted(m["label"] for m in row["muscles"]),
                 movement_patterns=sorted(p["pref_label"] for p in row["patterns"]),

@@ -48,6 +48,8 @@ Data quirks handled here (numbering from docs/data-overview.md §4):
         computations must use it, never the wall clock.
     q14 ``attachments`` is absent (not null) on most chat messages — read
         with ``.get()`` semantics.
+    q15 ``estimated_rep_duration`` is reps per second, not seconds — inverted
+        and stored as ``rep_seconds`` so no consumer has to know.
 """
 
 from __future__ import annotations
@@ -491,6 +493,7 @@ def load_and_validate(data_dir: Path) -> Kg1Payload:
     }
     for row in exercises_raw:
         joints_loaded = sorted(set(row["joints_loaded"]))  # q6
+        rate = row["estimated_rep_duration"]  # q15: reps per second
         exercises.append(
             {
                 "id": row["id"],
@@ -499,13 +502,17 @@ def load_and_validate(data_dir: Path) -> Kg1Payload:
                     "name": row["name"],
                     "is_reps": row["is_reps"],
                     "supports_weight": row["supports_weight"],
-                    "estimated_rep_duration": row["estimated_rep_duration"],
+                    # q15: 7 rows ship a 0 rate with no reciprocal. Keyed off
+                    # the rate, not `is_reps` — one duration-only row (Kneeling
+                    # Stability Ball Lat Stretch) carries 0.2 anyway.
+                    "rep_seconds": 1 / rate if rate else 0.0,
                     "side": row["side"],  # null clears the property
                     "is_unilateral": row["side"] is not None,
                     "has_bilateral_pair": row["is_bilateral"],  # q1
                     "stresses_recorded": bool(joints_loaded),  # q4
-                    # q2 bilateral_pair_id and q3 priority_tier / is_duration
-                    # are dropped: dangling and zero-entropy respectively.
+                    # q2 bilateral_pair_id, q3 priority_tier / is_duration and
+                    # q15 estimated_rep_duration are dropped: dangling,
+                    # zero-entropy, and superseded by rep_seconds respectively.
                 },
             }
         )
@@ -941,7 +948,13 @@ def load_neo4j(payload: Kg1Payload, member: dict[str, Any], uri: str, user: str,
                 rows=payload.substitutions,
             )
             run(
-                "UNWIND $rows AS row MERGE (e:Exercise {id: row.id}) SET e += row.props",
+                # `=` rather than `+=`, unlike the concept writes above: this
+                # script advertises *dropping* catalog fields (q2, q3, q15) and
+                # an additive write can only ever add, so on a pre-existing
+                # graph the dropped properties would survive forever. Replacing
+                # wholesale is what makes those drops real. `row.props` carries
+                # `id`, so the MERGE key round-trips.
+                "UNWIND $rows AS row MERGE (e:Exercise {id: row.id}) SET e = row.props",
                 rows=payload.exercises,
             )
             for rel, rows in payload.exercise_edges.items():

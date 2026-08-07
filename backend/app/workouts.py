@@ -24,7 +24,8 @@ async def create_workout(request: Request, body: WorkoutRequest) -> WorkoutPlan:
 
     Raises:
         HTTPException: 503 when Neo4j or the model API is unavailable, 422
-            when the constraints leave an empty exercise pool, 500 otherwise.
+            when the constraints leave an empty exercise pool or leave the
+            planner unable to fill the requested time window, 500 otherwise.
     """
     if not settings.anthropic_api_key:
         raise HTTPException(

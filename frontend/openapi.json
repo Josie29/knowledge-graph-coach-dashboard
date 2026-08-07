@@ -54,7 +54,7 @@
           "workouts"
         ],
         "summary": "Create Workout",
-        "description": "Generate (or adjust) a workout plan for a member.\n\nSend the previous response's ``constraints_used`` back as\n``prior_constraints`` together with a follow-up message to adjust the\nplan \u2014 the constraint set merges and the safety traversal re-runs.\n\nRaises:\n    HTTPException: 503 when Neo4j or the model API is unavailable, 422\n        when the constraints leave an empty exercise pool, 500 otherwise.",
+        "description": "Generate (or adjust) a workout plan for a member.\n\nSend the previous response's ``constraints_used`` back as\n``prior_constraints`` together with a follow-up message to adjust the\nplan \u2014 the constraint set merges and the safety traversal re-runs.\n\nRaises:\n    HTTPException: 503 when Neo4j or the model API is unavailable, 422\n        when the constraints leave an empty exercise pool or leave the\n        planner unable to fill the requested time window, 500 otherwise.",
         "operationId": "create_workout_api_workout_post",
         "requestBody": {
           "content": {

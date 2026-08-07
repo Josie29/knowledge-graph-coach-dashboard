@@ -1,7 +1,8 @@
 """Workout generator agent (surface A, issue #8).
 
 The runtime is a **shallow, deterministic loop** — resolve, fetch pool,
-generate — with the LLM used exactly twice and never in charge of safety:
+generate — with the LLM entered at exactly two points and never in charge of
+safety:
 
 1. *Extract* (LLM): pull constraint mentions out of the coach's free-text
    message into a typed ``ConstraintMentions``.
@@ -14,6 +15,14 @@ generate — with the LLM used exactly twice and never in charge of safety:
    given** into warmup/main/cooldown with sets/reps/rest. An output validator
    rejects any plan that references an exercise outside the pool or blows the
    time window, so the LLM cannot re-introduce a filtered exercise.
+
+Step 4 is a bounded tool loop rather than a single call: the model can price a
+draft with ``check_plan_duration`` before committing to it. Summing
+``sets*reps*rep_seconds`` across a dozen lines is the kind of arithmetic
+language models get wrong, and a wrong total used to surface as a plan that
+filled half the coach's window. The tool runs the validator's own arithmetic,
+so checking is cheaper than being rejected. Everything the loop can reach is
+still pure computation over the pool — no graph access, no safety decisions.
 
 Member defaults (equipment, injuries, dislikes) load from KG 2 and are
 auto-applied on every request. Adjustments work by sending the previous
@@ -28,11 +37,20 @@ describes exactly one response.
 from __future__ import annotations
 
 import logging
+import math
+from collections import Counter
 from dataclasses import dataclass
 
 from neo4j import AsyncDriver
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent, ModelRetry, RunContext
+from pydantic_ai import (
+    Agent,
+    IncompleteToolCall,
+    ModelRetry,
+    RunContext,
+    UnexpectedModelBehavior,
+)
+from pydantic_ai.models import Model
 
 from app.agents.model import build_model, build_model_settings
 from app.kg.resolver import ResolvedConcept, resolve_concepts
@@ -50,9 +68,29 @@ logger = logging.getLogger(__name__)
 
 # Seconds of setup/transition budgeted per exercise when fitting the window.
 TRANSITION_SECONDS = 30
-# The plan must land within these bounds of the requested window.
+# The plan must land within these bounds of the requested window. One band:
+# `time_fit_band` is the only reader, `time_fit_instruction` quotes what it
+# returns and `validate_plan` enforces it, so changing a ratio moves the
+# promise and the enforcement together or not at all.
 TIME_FIT_MAX_RATIO = 1.1
-TIME_FIT_MIN_RATIO = 0.5
+TIME_FIT_MIN_RATIO = 0.8
+# Narrowest band worth asking a planner to hit, in minutes.
+MIN_BAND_WIDTH_MINUTES = 2
+# The output-retry budget is shared by every way a draft can be rejected --
+# Pydantic's own schema validation, pool membership, rep/duration shape,
+# duplicate ids, an empty main section, and the time band -- and the time check
+# cannot even run until the rest are clean. At 3 a run that spends two attempts
+# on shape errors gets a single shot at the duration.
+PLANNER_RETRIES = 5
+# The most one pool entry can plausibly contribute, used only to decide whether
+# the time floor is reachable from a given pool. These mirror the top of the
+# volume the planner's own instruction suggests (reps "8-15 typical",
+# duration "20-60s typical"), so the bound stays consistent with what the model
+# is actually told to prescribe.
+CAPACITY_SETS = 4
+CAPACITY_REPS = 15
+CAPACITY_DURATION_SECONDS = 60
+CAPACITY_REST_SECONDS = 90
 
 
 # ---------------------------------------------------------------------------
@@ -333,11 +371,20 @@ async def _merge_mentions(
 class DraftExercise(BaseModel):
     exercise_id: str = Field(description="Must be an id from the pool list")
     sets: int = Field(ge=1, le=8)
+    # Bounded because the time floor makes an absurd single line the cheapest
+    # way to pass validation: one 600-second plank would clear the band without
+    # composing a workout.
     reps: int | None = Field(
-        default=None, description="For rep-based exercises (is_reps true)"
+        default=None,
+        ge=1,
+        le=30,
+        description="For rep-based exercises (is_reps true)",
     )
     duration_seconds: int | None = Field(
-        default=None, description="For duration-based exercises (is_reps false)"
+        default=None,
+        ge=5,
+        le=300,
+        description="For duration-based exercises (is_reps false)",
     )
     rest_seconds: int = Field(ge=0, le=300)
     coach_note: str | None = None
@@ -359,38 +406,88 @@ class PlannerDeps:
     time_window_minutes: int
 
 
+class TimeFitBand(BaseModel):
+    """The duration a plan must land in for one request, in whole minutes."""
+
+    window: int
+    minimum: int
+    maximum: int
+
+
+def time_fit_band(window_minutes: int) -> TimeFitBand:
+    """The one time-fit band, quoted to the planner and enforced by the validator.
+
+    Rounded *inward* so the instruction can state the same integers the
+    validator compares against: a prompt promising "at least 28" while the
+    validator accepts 27.6 reintroduces, in the decimal place, exactly the
+    prompt/enforcement drift this function exists to close. Rounding the
+    ceiling up would be the dangerous direction — a prompt looser than the gate.
+
+    Args:
+        window_minutes: The time window the coach asked for.
+
+    Returns:
+        The window alongside the inclusive minimum and maximum plan duration.
+    """
+    minimum = math.ceil(window_minutes * TIME_FIT_MIN_RATIO)
+    return TimeFitBand(
+        window=window_minutes,
+        minimum=minimum,
+        # The ratios alone leave a band about 0.3x the window wide, which at the
+        # schema's 5-minute floor is a single minute — unhittable when every
+        # exercise costs 30 seconds of transition before any work. Widen rather
+        # than let short windows retry their way into a hard failure.
+        maximum=max(
+            math.floor(window_minutes * TIME_FIT_MAX_RATIO),
+            minimum + MIN_BAND_WIDTH_MINUTES,
+        ),
+    )
+
+
 def exercise_seconds(
     pooled: PoolExercise, draft: DraftExercise
 ) -> int:
     """Time estimate for one plan line, from the catalog's rep duration."""
     if pooled.is_reps and draft.reps:
-        work = draft.sets * draft.reps * pooled.estimated_rep_duration
+        work = draft.sets * draft.reps * pooled.rep_seconds
     else:
         work = draft.sets * (draft.duration_seconds or 0)
     return int(work + draft.sets * draft.rest_seconds + TRANSITION_SECONDS)
 
 
-def plan_minutes(deps: PlannerDeps, draft: PlanDraft) -> float:
+def sections_minutes(
+    deps: PlannerDeps, *sections: list[DraftExercise]
+) -> float:
+    """Estimated minutes for any set of plan sections.
+
+    Split out from ``plan_minutes`` so ``check_plan_duration`` can price a
+    draft the model has not assembled into a ``PlanDraft`` yet, guaranteeing
+    the tool and the validator run the same arithmetic.
+    """
     total = sum(
         exercise_seconds(deps.pool_by_id[d.exercise_id], d)
-        for section in (draft.warmup, draft.main, draft.cooldown)
+        for section in sections
         for d in section
         if d.exercise_id in deps.pool_by_id
     )
     return total / 60
 
 
+def plan_minutes(deps: PlannerDeps, draft: PlanDraft) -> float:
+    return sections_minutes(deps, draft.warmup, draft.main, draft.cooldown)
+
+
 planner_agent = Agent(
     name="workout-planner",
     deps_type=PlannerDeps,
     output_type=PlanDraft,
-    retries=3,
+    retries=PLANNER_RETRIES,
     instructions=(
         "You are a strength coach composing a workout plan. You are given a "
         "pre-filtered pool of exercises that are ALL safe and feasible for "
         "this member - safety filtering already happened in the knowledge "
         "graph, so choose freely from the pool but NEVER reference an "
-        "exercise id that is not in it.\n"
+        "exercise id that is not in it. Use each exercise at most once.\n"
         "Structure: warmup (mobility/dynamic/therapeutic work, ~10-20% of the "
         "time), main (the strength/conditioning work serving the coach's "
         "goal), cooldown (stretching/regen, ~10-15%).\n"
@@ -399,12 +496,140 @@ planner_agent = Agent(
         "if nothing better fits.\n"
         "For rep-based exercises set `reps` (8-15 typical) and leave "
         "duration_seconds null; for duration-based exercises set "
-        "`duration_seconds` (20-60s typical) and leave reps null.\n"
-        "Fit the time window: per-exercise time is "
-        "sets*reps*rep_seconds (or sets*duration_seconds) plus "
-        "sets*rest_seconds plus 30s transition. Aim for 85-100% of the window."
+        "`duration_seconds` (20-60s typical) and leave reps null."
     ),
 )
+
+
+@planner_agent.instructions
+def time_fit_instruction(ctx: RunContext[PlannerDeps]) -> str:
+    """The time budget, in the whole minutes ``validate_plan`` will enforce.
+
+    Dynamic rather than baked into the static preamble for two reasons. The
+    numbers come from ``time_fit_band``, so the promise made here and the gate
+    applied later cannot drift. And a percentage of an unstated window is
+    something the model has to compute before it can obey, where whole minutes
+    it can simply hit — the arithmetic is what it is worst at.
+
+    Registering it as a dynamic instruction is deliberate and cache-safe: the
+    static preamble above ships as one non-dynamic part and this appends after
+    it, and the Anthropic backend places the cache breakpoint after the last
+    non-dynamic part, so the prefix cached by ``anthropic_cache_instructions``
+    (see ``app/agents/model.py``) survives the per-request tail.
+    """
+    band = time_fit_band(ctx.deps.time_window_minutes)
+    return (
+        f"Time budget. The coach has {band.window} minutes. Target "
+        f"{band.window} minutes and land just under it — a plan that runs over "
+        "costs the coach time they do not have.\n"
+        f"A plan totalling under {band.minimum} minutes or over "
+        f"{band.maximum} minutes is rejected and you will be made to redo it. "
+        "Do not work the total out yourself: call `check_plan_duration` with "
+        "your draft and adjust until `within_band` is true, then return that "
+        "plan.\n"
+        f"If it comes up short, add exercises from the pool or add sets. Never "
+        "pad `rest_seconds` to reach the floor — longer rest is not more "
+        "training."
+    )
+
+
+class PlanDurationCheck(BaseModel):
+    """What a draft plan costs in time, against the band it has to land in."""
+
+    total_minutes: float
+    window_minutes: int
+    required_minimum_minutes: int
+    required_maximum_minutes: int
+    within_band: bool
+    adjust_by_minutes: float = Field(
+        description="Minutes to add (positive) or cut (negative); 0 when in band"
+    )
+    per_exercise_minutes: dict[str, float] = Field(
+        description="Minutes per exercise id, to show where the time is going"
+    )
+
+
+@planner_agent.tool
+async def check_plan_duration(
+    ctx: RunContext[PlannerDeps],
+    warmup: list[DraftExercise],
+    main: list[DraftExercise],
+    cooldown: list[DraftExercise],
+) -> PlanDurationCheck:
+    """Price a draft plan against the required time band. Call before finalising.
+
+    Runs the same arithmetic the output validator runs, so a draft this reports
+    as ``within_band`` cannot be rejected on time.
+
+    Args:
+        warmup: The draft's warmup lines.
+        main: The draft's main lines.
+        cooldown: The draft's cooldown lines.
+
+    Returns:
+        The total, the band, whether it fits, how far off it is, and a
+        per-exercise breakdown showing where the time is going.
+    """
+    band = time_fit_band(ctx.deps.time_window_minutes)
+    total = sections_minutes(ctx.deps, warmup, main, cooldown)
+    if total < band.minimum:
+        adjust = band.minimum - total
+    elif total > band.maximum:
+        adjust = band.maximum - total
+    else:
+        adjust = 0.0
+    return PlanDurationCheck(
+        total_minutes=round(total, 1),
+        window_minutes=band.window,
+        required_minimum_minutes=band.minimum,
+        required_maximum_minutes=band.maximum,
+        within_band=band.minimum <= total <= band.maximum,
+        adjust_by_minutes=round(adjust, 1),
+        per_exercise_minutes={
+            d.exercise_id: round(
+                exercise_seconds(ctx.deps.pool_by_id[d.exercise_id], d) / 60, 1
+            )
+            for section in (warmup, main, cooldown)
+            for d in section
+            if d.exercise_id in ctx.deps.pool_by_id
+        },
+    )
+
+
+def _duplicate_ids(placed: list[DraftExercise]) -> list[str]:
+    """Exercise ids appearing more than once across a draft's lines, sorted."""
+    counts = Counter(d.exercise_id for d in placed)
+    return sorted(exercise_id for exercise_id, n in counts.items() if n > 1)
+
+
+def _pool_can_fill(deps: PlannerDeps, minimum_minutes: int) -> bool:
+    """Whether this pool could plausibly reach the floor at all.
+
+    The floor is only fair if the pool can actually reach it. Bounds the pool
+    by using each exercise once at the top of the volume the instruction itself
+    suggests, deliberately generously — this decides whether the floor is
+    *reachable*, and a tight bound would turn "the pool is thin" into a hard
+    failure. A three-exercise pool against a fifty-minute window is a real
+    scenario (see ``docs/example-runs.md``), and there a short plan is the
+    honest answer rather than a validation error.
+
+    Args:
+        deps: The planner's pool and window.
+        minimum_minutes: The floor the plan would have to clear.
+
+    Returns:
+        True when the pool's upper bound reaches the floor, so the floor should
+        be enforced; False when it cannot, so a short plan is accepted.
+    """
+    total = 0.0
+    for pooled in deps.pool_by_id.values():
+        work = (
+            CAPACITY_SETS * CAPACITY_REPS * rep_seconds(pooled)
+            if pooled.is_reps
+            else CAPACITY_SETS * CAPACITY_DURATION_SECONDS
+        )
+        total += work + CAPACITY_SETS * CAPACITY_REST_SECONDS + TRANSITION_SECONDS
+    return total / 60 >= minimum_minutes
 
 
 @planner_agent.output_validator
@@ -438,27 +663,88 @@ async def validate_plan(
                 )
     if not draft.main:
         problems.append("the main section is empty")
+    placed = [d for s in (draft.warmup, draft.main, draft.cooldown) for d in s]
+    # Repeats would let a short plan reach the floor without adding variety, and
+    # they belong in this pass rather than after the time gate so they cannot
+    # spend a retry that the duration correction needs.
+    repeated = _duplicate_ids(placed)
+    if repeated:
+        problems.append(
+            f"these exercise ids appear more than once: {', '.join(repeated)}. "
+            "Use each exercise at most once; add a different one from the pool "
+            "instead."
+        )
     if not problems:
+        band = time_fit_band(ctx.deps.time_window_minutes)
         minutes = plan_minutes(ctx.deps, draft)
-        window = ctx.deps.time_window_minutes
-        if minutes > window * TIME_FIT_MAX_RATIO:
+        if minutes > band.maximum:
             problems.append(
-                f"plan is ~{minutes:.0f} min for a {window} min window - "
-                "remove exercises or reduce sets/rest"
+                f"the plan totals {minutes:.1f} min; it must not exceed "
+                f"{band.maximum} min for this {band.window} min window, so it "
+                f"is {minutes - band.maximum:.1f} min over. Drop the "
+                "lowest-scored exercises from the main section, or remove a "
+                "set from them; keep at least one exercise in the warmup and "
+                "the cooldown."
             )
-        elif (
-            minutes < window * TIME_FIT_MIN_RATIO
-            # A very small pool may simply not fill the window; a short plan
-            # is then the honest outcome, not a validation failure.
-            and len(ctx.deps.pool_by_id) >= 8
-        ):
+        elif minutes < band.minimum and _pool_can_fill(ctx.deps, band.minimum):
+            per_line = minutes / len(placed) if placed else 0
+            more = max(1, round((band.minimum - minutes) / per_line)) if per_line else 1
             problems.append(
-                f"plan is only ~{minutes:.0f} min for a {window} min window - "
-                "add exercises or sets"
+                f"the plan totals {minutes:.1f} min; it must total at least "
+                f"{band.minimum} min for this {band.window} min window, so it "
+                f"is {band.minimum - minutes:.1f} min short. Its "
+                f"{len(placed)} lines average {per_line:.1f} min each, so add "
+                f"about {more} more exercise(s) from the pool to the main "
+                f"section, or add a set to {more} of the exercises already "
+                "there. Keep every exercise you have chosen and its "
+                "reps/duration, and do NOT raise `rest_seconds` to close the "
+                "gap. Call `check_plan_duration` on the revised draft before "
+                "returning it."
             )
     if problems:
         raise ModelRetry("\n".join(problems))
     return draft
+
+
+async def _run_planner(
+    model: Model, prompt: str, deps: PlannerDeps, pool_size: int
+) -> PlanDraft:
+    """Compose the plan, turning an unusable draft into a coach-facing error.
+
+    Args:
+        model: The configured Claude model.
+        prompt: The pool prompt to compose from.
+        deps: The planner's pool and time window.
+        pool_size: How many exercises the constraints left, for the error text.
+
+    Returns:
+        The validated draft.
+
+    Raises:
+        ValueError: When the planner cannot produce a plan inside the time
+            band; the router renders this to the coach as a 422.
+        IncompleteToolCall: When the output token budget was too small. That is
+            a configuration fault rather than anything the coach can act on, so
+            it deliberately escapes as a 500.
+    """
+    try:
+        run = await planner_agent.run(
+            prompt,
+            model=model,
+            deps=deps,
+            model_settings=build_model_settings(effort="low", max_tokens=8192),
+        )
+    except IncompleteToolCall:
+        raise
+    except UnexpectedModelBehavior as exc:
+        logger.error("Planner could not compose a plan in the time band: %s", exc)
+        band = time_fit_band(deps.time_window_minutes)
+        raise ValueError(
+            f"could not compose a {band.minimum}-{band.maximum} minute plan "
+            f"from the {pool_size} exercises this member's constraints allow. "
+            "Try a different time window, or relax an exclusion."
+        ) from exc
+    return run.output
 
 
 def _pool_prompt(pool: list[PoolExercise], window: int, coach_prompt: str,
@@ -479,7 +765,7 @@ def _pool_prompt(pool: list[PoolExercise], window: int, coach_prompt: str,
         lines.append(
             f"{e.exercise_id} | {e.name} | {e.score:+.2f} | "
             f"{'reps' if e.is_reps else 'duration'} | "
-            f"{e.estimated_rep_duration} | "
+            f"{e.rep_seconds:.1f} | "
             f"{', '.join(e.muscle_groups)} | {', '.join(e.movement_patterns)}"
         )
     return "\n".join(lines)
@@ -539,7 +825,8 @@ async def generate_workout(
         pool_by_id={e.exercise_id: e for e in pool_result.included},
         time_window_minutes=request.time_window_minutes,
     )
-    draft_run = await planner_agent.run(
+    draft = await _run_planner(
+        model,
         _pool_prompt(
             pool_result.included,
             request.time_window_minutes,
@@ -547,11 +834,9 @@ async def generate_workout(
             mentions.emphasis,
             goals,
         ),
-        model=model,
-        deps=deps,
-        model_settings=build_model_settings(effort="low", max_tokens=4096),
+        deps,
+        len(pool_result.included),
     )
-    draft = draft_run.output
 
     def build_section(title: str, entries: list[DraftExercise]) -> PlanSection:
         planned = []

@@ -30,7 +30,7 @@ Every one of the 50 records has all 14 keys — no optional fields, no ragged ob
 | `is_reps` | bool | 2 | 42 true / 8 false. |
 | `is_duration` | bool | **1** | Always `true`. Carries zero signal. |
 | `supports_weight` | bool | 2 | 28 true / 22 false — can external load be added. |
-| `estimated_rep_duration` | float | 12 | Seconds per rep, `0`–`1.9`. `0` exactly for the 8 `is_reps: false` rows. |
+| `estimated_rep_duration` | float | 12 | **Reps per second**, `0`–`1.9`, despite the name — see [Quirks](#4-quirks-and-gotchas). `0` on 7 rows; all 7 are `is_reps: false`, but the 8th such row (Kneeling Stability Ball Lat Stretch) carries `0.2` anyway. |
 | `bilateral_pair_id` | UUID \| null | 19 | Non-null on the same 18 rows where `side` is set. **All 18 are dangling.** |
 
 ### 1.2 Value distributions
@@ -98,10 +98,10 @@ With Handles, SkiErg, Miniband.
 
 ### 1.3 Full catalog
 
-`Flags` collapses `is_bilateral` / `side` / `is_reps` / `supports_weight`. `Rep sec` is
-`estimated_rep_duration`.
+`Flags` collapses `is_bilateral` / `side` / `is_reps` / `supports_weight`. `Rep rate` is
+`estimated_rep_duration` verbatim — reps per second, not seconds (quirk 15).
 
-| Exercise | Muscle groups | Joints loaded | Movement patterns | Equipment | Flags | Rep sec |
+| Exercise | Muscle groups | Joints loaded | Movement patterns | Equipment | Flags | Rep rate |
 |---|---|---|---|---|---|--:|
 | Alternating Dumbbell Decline Bench Press | chest, triceps | _(none)_ | upper push - horizontal | Adjustable Bench - Decline, Dumbbell | loadable | 0.5 |
 | Alternating Dumbbell Overhead Press | deltoids, triceps | shoulder, elbow | upper push - vertical | Dumbbell | loadable | 0.4 |
@@ -376,3 +376,4 @@ work or lets jumps through, depending on which way it errs.
 | 12 | Lab panels ship values with no reference ranges or units metadata beyond the key suffixes. | `member-context.json` | Any "high/low/normal" verdict requires an external, citable source. |
 | 13 | Dates run to mid-2026 and `injuries.since` is 2026-05-10; the brief is generated for 2026-06-04. | `member-context.json` | Don't compute recency against the real wall clock — anchor to 2026-06-04. |
 | 14 | `attachments` is present on one chat message and absent (not `null`) on the rest. | `member-context.json` | Use `.get()` semantics; a strict schema with a required key fails. |
+| 15 | `estimated_rep_duration` is **reps per second**, not seconds per rep. The ordering proves it: single-leg jump rope — the fastest movement in the catalog — carries the largest value (1.9), while a controlled dumbbell bench press carries 0.2 and World's Greatest Stretch 0.1. Read as seconds those are absurd (a 0.2 s bench rep); read as a rate they are exact (5.0 s and 10 s per rep). No rescale fixes the inversion — only the reciprocal. | `exercises.json` | Multiplying by it makes the work term ~13% of a plan's estimated duration, leaving rest as the only dial that moves the total. Inverted at ingest and stored as `Exercise.rep_seconds`; the raw field is dropped, so nothing downstream has to know. |
