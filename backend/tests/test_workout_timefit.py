@@ -24,10 +24,11 @@ from app.agents.workout import (
 from app.kg.safety import GraphPath, PoolExercise
 
 # The 15-exercise safe pool from docs/example-runs.md §1 ("Lower-body strength
-# session, 50 minutes"), with `estimated_rep_duration` copied verbatim from
-# data/exercises.json. Hard-coded rather than read from the dataset so that a
-# change to the catalog shows up here as a failing test rather than silently
-# re-baselining the assertion.
+# session, 50 minutes"). The second column is the catalog's raw
+# `estimated_rep_duration` copied verbatim from data/exercises.json — a rate in
+# reps per second, which ingest inverts into `Exercise.rep_seconds` (quirk 15).
+# Kept in raw form here so the table stays checkable against the dataset by eye;
+# `pooled` applies the same inversion the build script does.
 DEMO_POOL: list[tuple[str, float, bool]] = [
     ("Alternating Dumbbell Overhead Press", 0.4, True),
     ("Alternating Low Plank To Low Side Plank", 0.1, True),
@@ -51,13 +52,20 @@ def _exercise_id(name: str) -> str:
     return "ex_" + name.lower().replace(" ", "_").replace("'", "")
 
 
-def pooled(name: str, rep_duration: float, is_reps: bool) -> PoolExercise:
-    """One pool entry with only the fields the time-fit math reads."""
+def pooled(name: str, rep_rate: float, is_reps: bool) -> PoolExercise:
+    """One pool entry with only the fields the time-fit math reads.
+
+    Args:
+        name: Catalog name; also seeds the exercise id.
+        rep_rate: The catalog's raw reps-per-second value, inverted here the
+            way ingest does so fixtures can quote the dataset directly.
+        is_reps: Whether the exercise is prescribed in reps or in seconds.
+    """
     return PoolExercise(
         exercise_id=_exercise_id(name),
         name=name,
         supports_weight=False,
-        estimated_rep_duration=rep_duration,
+        rep_seconds=1 / rep_rate if rep_rate else 0.0,
         is_reps=is_reps,
         muscle_groups=[],
         movement_patterns=[],
@@ -219,12 +227,12 @@ def draft_of_minutes(minutes: int) -> PlanDraft:
 
 
 def test_a_realistic_fifty_minute_session_is_estimated_realistically() -> None:
-    # Catches the units bug in `exercise_seconds`: the catalog's
-    # `estimated_rep_duration` is reps per second, not seconds per rep, so
-    # multiplying by it made the work term ~13% of the estimate and left
-    # rest_seconds as the only dial that moved the total. A coach's ordinary
-    # 50-minute session was scored at ~40 minutes, and any floor tightened
-    # against that ruler would push the model to inflate rest to reach it.
+    # Catches the units bug end to end: the catalog ships reps per second, not
+    # seconds per rep, so pricing a rep at the raw value made the work term
+    # ~13% of the estimate and left rest_seconds as the only dial that moved
+    # the total. A coach's ordinary 50-minute session scored ~40 minutes, and
+    # any floor tightened against that ruler would push the model to inflate
+    # rest to reach it. Ingest now inverts (quirk 15); this guards the result.
     minutes = plan_minutes(demo_deps(50), realistic_fifty_minute_session())
 
     assert 45 <= minutes <= 55, f"estimated {minutes:.1f} min for a 50 min session"
@@ -248,17 +256,16 @@ def test_the_work_term_is_a_meaningful_share_of_the_estimate() -> None:
 
 
 def test_the_pool_prompt_quotes_the_same_seconds_the_estimator_uses() -> None:
-    # Catches the half-fix: correcting `exercise_seconds` but leaving the pool
-    # table showing the raw catalog rate. The column is labelled seconds, so
-    # the model would price a 0.2 exercise at 0.2s per rep while the validator
-    # priced it at 5s — a 25x disagreement that no amount of prompt wording
-    # about hitting the window could survive.
-    from app.agents.workout import _pool_prompt, rep_seconds
+    # The pool table's column is labelled seconds. If it ever showed the raw
+    # catalog rate again, the model would price a 0.2 exercise at 0.2s per rep
+    # while the validator priced it at 5s — a 25x disagreement no amount of
+    # prompt wording about hitting the window could survive.
+    from app.agents.workout import _pool_prompt
 
     bench = pooled("Dumbbell Neutral-Grip Bench Press", 0.2, True)
     prompt = _pool_prompt([bench], 50, "go", [], [])
 
-    assert f"| {rep_seconds(bench):.1f} |" in prompt
+    assert "| 5.0 |" in prompt
     assert "| 0.2 |" not in prompt
 
 
