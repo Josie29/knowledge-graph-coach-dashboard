@@ -399,18 +399,11 @@
             },
             "type": "array",
             "title": "Downrank Concept Ids"
-          },
-          "notes": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Notes"
           }
         },
         "type": "object",
         "title": "ConstraintSet",
-        "description": "The merged, serializable constraint state for one conversation.\n\nReturned on every plan as ``constraints_used``; send it back as\n``prior_constraints`` with a follow-up message to adjust the plan."
+        "description": "The merged, serializable constraint state for one conversation.\n\nPure state: the ids and flags the traversal acts on, and nothing else.\nReturned on every plan as ``constraints_used``; send it back as\n``prior_constraints`` with a follow-up message to adjust the plan.\n\nThe prose explaining *how* this set was derived is deliberately not here\n\u2014 it belongs to a single response, not to the carried-forward state, and\nlives on ``WorkoutPlan.resolution_notes``."
       },
       "ContextSlice": {
         "properties": {

@@ -110,7 +110,8 @@ async def main() -> int:
     out: list[str] = [HEADER]
 
     # -- Scenario 1: the injury case ------------------------------------
-    base = await member_defaults(driver, MEMBER_ID)
+    defaults = await member_defaults(driver, MEMBER_ID)
+    base = defaults.constraints
     out.append(
         "\n## 1 · Injury case — \"Lower-body strength session, 50 minutes\"\n\n"
         "Member defaults auto-applied from KG 2: five home equipment items, "
@@ -118,11 +119,11 @@ async def main() -> int:
         "to its clinical condition so the rule layer can fire.\n"
     )
     result = await safe_exercise_pool(driver, base.to_pool_constraints())
-    out.extend(render_pool(result, base.notes))
+    out.extend(render_pool(result, defaults.notes))
 
     # -- Scenario 2: limited equipment ----------------------------------
     limited = base.model_copy(deep=True)
-    notes = list(limited.notes)
+    notes = list(defaults.notes)
     notes.append("--- adjustment: \"no barbell, only dumbbells and a kettlebell\" ---")
     await _merge_mentions(
         driver,
@@ -143,7 +144,7 @@ async def main() -> int:
 
     # -- Scenario 3: exclude deadlifts ----------------------------------
     excluded = base.model_copy(deep=True)
-    notes = list(excluded.notes)
+    notes = list(defaults.notes)
     notes.append("--- adjustment: \"exclude deadlifts\" ---")
     await _merge_mentions(
         driver, excluded, ConstraintMentions(exclusions=["deadlifts"]), notes

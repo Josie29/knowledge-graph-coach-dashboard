@@ -196,8 +196,13 @@ export interface components {
          * ConstraintSet
          * @description The merged, serializable constraint state for one conversation.
          *
+         *     Pure state: the ids and flags the traversal acts on, and nothing else.
          *     Returned on every plan as ``constraints_used``; send it back as
          *     ``prior_constraints`` with a follow-up message to adjust the plan.
+         *
+         *     The prose explaining *how* this set was derived is deliberately not here
+         *     — it belongs to a single response, not to the carried-forward state, and
+         *     lives on ``WorkoutPlan.resolution_notes``.
          */
         ConstraintSet: {
             /** Equipment Ids */
@@ -208,8 +213,6 @@ export interface components {
             exclude_concept_ids?: string[];
             /** Downrank Concept Ids */
             downrank_concept_ids?: string[];
-            /** Notes */
-            notes?: string[];
         };
         /**
          * ContextSlice

@@ -19,6 +19,10 @@ Member defaults (equipment, injuries, dislikes) load from KG 2 and are
 auto-applied on every request. Adjustments work by sending the previous
 response's ``constraints_used`` back as ``prior_constraints`` — the new
 message's mentions merge in and the resolution + traversal re-run.
+
+``ConstraintSet`` is state and ``WorkoutPlan.resolution_notes`` is prose;
+they are kept apart so the round-tripped state stays small and the trace
+describes exactly one response.
 """
 
 from __future__ import annotations
@@ -59,15 +63,19 @@ TIME_FIT_MIN_RATIO = 0.5
 class ConstraintSet(BaseModel):
     """The merged, serializable constraint state for one conversation.
 
+    Pure state: the ids and flags the traversal acts on, and nothing else.
     Returned on every plan as ``constraints_used``; send it back as
     ``prior_constraints`` with a follow-up message to adjust the plan.
+
+    The prose explaining *how* this set was derived is deliberately not here
+    — it belongs to a single response, not to the carried-forward state, and
+    lives on ``WorkoutPlan.resolution_notes``.
     """
 
     equipment_ids: list[str] | None = None
     injuries: list[InjuryConstraint] = Field(default_factory=list)
     exclude_concept_ids: list[str] = Field(default_factory=list)
     downrank_concept_ids: list[str] = Field(default_factory=list)
-    notes: list[str] = Field(default_factory=list)
 
     def to_pool_constraints(self) -> PoolConstraints:
         return PoolConstraints(
@@ -173,13 +181,24 @@ extraction_agent = Agent(
 # ---------------------------------------------------------------------------
 
 
-async def member_defaults(driver: AsyncDriver, member_id: str) -> ConstraintSet:
+class MemberDefaults(BaseModel):
+    """A member's standing constraints plus the trace of how they resolved."""
+
+    constraints: ConstraintSet
+    notes: list[str] = Field(default_factory=list)
+
+
+async def member_defaults(driver: AsyncDriver, member_id: str) -> MemberDefaults:
     """Load and resolve the member's standing constraints from KG 2.
 
     Equipment joins directly; dislikes and injury notes go through the
     resolver (dislikes as down-ranks — they are preferences, not safety; the
     injury's free-text note resolves to a Condition so the rule layer can
     fire, per docs/data-overview.md quirk on `joints_loaded`).
+
+    Returns:
+        MemberDefaults carrying the constraint set and one note per
+        resolution attempt, including the failures the coach must see.
     """
     records, _, _ = await driver.execute_query(
         "MATCH (m:Member {id: $id}) "
@@ -189,22 +208,24 @@ async def member_defaults(driver: AsyncDriver, member_id: str) -> ConstraintSet:
         id=member_id,
     )
     if not records:
-        return ConstraintSet(notes=[f"member {member_id!r} not found in KG 2"])
+        return MemberDefaults(
+            constraints=ConstraintSet(),
+            notes=[f"member {member_id!r} not found in KG 2"],
+        )
     record = records[0]
     constraints = ConstraintSet(equipment_ids=sorted(record["equipment_ids"]))
+    notes: list[str] = []
 
     for dislike in record["dislikes"] or []:
         for hit in await resolve_concepts(driver, dislike):
             if hit.resolved and hit.concept_id:
                 constraints.downrank_concept_ids.append(hit.concept_id)
-                constraints.notes.append(
+                notes.append(
                     f"dislike {dislike!r} resolved to {hit.concept_id} "
                     f"({hit.match_method}) — down-ranked, not excluded"
                 )
             else:
-                constraints.notes.append(
-                    f"dislike {dislike!r} unresolved: {hit.reason}"
-                )
+                notes.append(f"dislike {dislike!r} unresolved: {hit.reason}")
 
     for injury in record["injuries"] or []:
         hits = await resolve_concepts(
@@ -219,17 +240,17 @@ async def member_defaults(driver: AsyncDriver, member_id: str) -> ConstraintSet:
                     severity=injury["severity"],
                 )
             )
-            constraints.notes.append(
+            notes.append(
                 f"injury {injury['id']} note resolved to condition "
                 f"{hit.concept_id} ({hit.match_method}, score {hit.score:.2f})"
             )
         else:
-            constraints.notes.append(
+            notes.append(
                 f"injury {injury['id']} note did not resolve to a condition "
                 f"({hit.reason}); its safety rules CANNOT be applied — "
                 "surface this to the coach"
             )
-    return constraints
+    return MemberDefaults(constraints=constraints, notes=notes)
 
 
 # ---------------------------------------------------------------------------
@@ -484,11 +505,16 @@ async def generate_workout(
     """Resolve → fetch pool → generate; returns the full provenance-bearing plan."""
     model = build_model()
 
+    notes: list[str] = []
     if request.prior_constraints is not None:
         constraints = request.prior_constraints.model_copy(deep=True)
+        # An adjustment turn starts from state, not prose: the previous
+        # turn's derivation notes belong to the previous response.
+        notes.append("carried the previous turn's constraint set forward")
     else:
-        constraints = await member_defaults(driver, request.member_id)
-    notes = list(constraints.notes)
+        defaults = await member_defaults(driver, request.member_id)
+        constraints = defaults.constraints
+        notes.extend(defaults.notes)
 
     extraction = await extraction_agent.run(
         request.prompt,
@@ -497,7 +523,6 @@ async def generate_workout(
     )
     mentions = extraction.output
     await _merge_mentions(driver, constraints, mentions, notes)
-    constraints.notes = notes
 
     pool_result: PoolResult = await safe_exercise_pool(
         driver, constraints.to_pool_constraints()
