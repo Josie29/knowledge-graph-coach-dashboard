@@ -34,7 +34,16 @@ from neo4j import AsyncDriver
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
 
-from app.kg.churn import ChurnRiskLevel
+from app.kg.churn import AdherenceWeek, ChurnRiskLevel
+from app.kg.member_facts import (
+    BriefTask,
+    ChatMessage,
+    Goal,
+    InjuryFact,
+    ProfileFact,
+    WeightSample,
+    WorkoutSummary,
+)
 
 # ---------------------------------------------------------------------------
 # ContextSlice — the retrieval tool's typed result
@@ -73,7 +82,7 @@ ALL_SECTIONS: tuple[SectionName, ...] = (
 
 class AdherenceSlice(BaseModel):
     trend: str
-    weeks: list[dict[str, str | int]]
+    weeks: list[AdherenceWeek]
 
 
 class BiomarkerSlice(BaseModel):
@@ -90,7 +99,7 @@ class LabPanelSlice(BaseModel):
 
 class CoachBriefSlice(BaseModel):
     generated_for: str
-    tasks: list[dict[str, str]]
+    tasks: list[BriefTask]
 
 
 class ChurnRiskSlice(BaseModel):
@@ -113,17 +122,17 @@ class ContextSlice(BaseModel):
         description="The dataset's 'today'. All recency/trend statements must "
         "be computed against this date, never the wall clock."
     )
-    profile: dict[str, str | int | float] | None = None
-    goals: list[dict[str, str | int | None]] | None = None
+    profile: ProfileFact | None = None
+    goals: list[Goal] | None = None
     adherence: AdherenceSlice | None = None
     biomarkers: BiomarkerSlice | None = None
-    weight_trend: list[dict[str, str | float]] | None = None
+    weight_trend: list[WeightSample] | None = None
     labs: list[LabPanelSlice] | None = None
-    workout_history: list[dict[str, str | int | bool | list[str] | None]] | None = None
-    chat_history: list[dict[str, str | bool | list[str] | None]] | None = None
+    workout_history: list[WorkoutSummary] | None = None
+    chat_history: list[ChatMessage] | None = None
     coach_brief: CoachBriefSlice | None = None
     churn_risk: ChurnRiskSlice | None = None
-    injuries: list[dict[str, str | None]] | None = None
+    injuries: list[InjuryFact] | None = None
     equipment: list[str] | None = None
 
 
@@ -221,23 +230,17 @@ async def fetch_context_slice(
         member_id=member_id, now_anchor=str(member.get("now_anchor", ""))
     )
     if "profile" in wanted:
-        slice_.profile = {
-            key: member[key]
-            for key in (
-                "name", "age", "sex", "height_cm", "weight_kg", "tier",
-                "member_since", "timezone", "preferred_session_minutes",
-                "training_days_per_week", "adherence_trend",
-            )
-            if key in member
-        }
+        slice_.profile = ProfileFact.model_validate(member)
     if "goals" in wanted:
-        slice_.goals = sorted(
-            record["goals"], key=lambda g: (g["priority"], g["id"])
-        )
+        goals = [Goal.model_validate(goal) for goal in record["goals"]]
+        slice_.goals = sorted(goals, key=lambda g: (g.priority, g.id))
     if "adherence" in wanted:
+        weeks = [
+            AdherenceWeek.model_validate(week) for week in record["adherence_weeks"]
+        ]
         slice_.adherence = AdherenceSlice(
             trend=member["adherence_trend"],
-            weeks=sorted(record["adherence_weeks"], key=lambda w: w["week_of"]),
+            weeks=sorted(weeks, key=lambda w: w.week_of),
         )
     if "biomarkers" in wanted and record["biomarkers"]:
         biomarkers = record["biomarkers"][0]
@@ -247,9 +250,10 @@ async def fetch_context_slice(
             sleep_hours_last_7_days=list(biomarkers["sleep_hours_last_7_days"]),
         )
     if "weight_trend" in wanted:
-        slice_.weight_trend = sorted(
-            record["weight_samples"], key=lambda s: s["date"]
-        )
+        samples = [
+            WeightSample.model_validate(sample) for sample in record["weight_samples"]
+        ]
+        slice_.weight_trend = sorted(samples, key=lambda s: s.date)
     if "labs" in wanted:
         slice_.labs = [
             LabPanelSlice(
@@ -260,18 +264,20 @@ async def fetch_context_slice(
             for panel in record["lab_panels"]
         ]
     if "workout_history" in wanted:
-        slice_.workout_history = sorted(
-            record["workouts"], key=lambda w: w["date"], reverse=True
-        )
+        workouts = [
+            WorkoutSummary.model_validate(workout) for workout in record["workouts"]
+        ]
+        slice_.workout_history = sorted(workouts, key=lambda w: w.date, reverse=True)
     if "chat_history" in wanted:
-        slice_.chat_history = sorted(record["chat"], key=lambda c: c["ts"])
+        messages = [ChatMessage.model_validate(message) for message in record["chat"]]
+        slice_.chat_history = sorted(messages, key=lambda c: c.ts)
     if "coach_brief" in wanted and record["briefs"]:
         brief = record["briefs"][0]
         slice_.coach_brief = CoachBriefSlice(
             generated_for=str(brief["generated_for"]),
             tasks=[
-                {"type": t["type"], "text": t["text"]}
-                for t in sorted(brief["tasks"], key=lambda t: t["position"])
+                BriefTask.model_validate(task)
+                for task in sorted(brief["tasks"], key=lambda t: t["position"])
             ],
         )
     if "churn_risk" in wanted and record["churn"]:
@@ -283,7 +289,9 @@ async def fetch_context_slice(
             reasons=list(churn["reasons"]),
         )
     if "injuries" in wanted:
-        slice_.injuries = record["injuries"]
+        slice_.injuries = [
+            InjuryFact.model_validate(injury) for injury in record["injuries"]
+        ]
     if "equipment" in wanted:
         slice_.equipment = sorted(record["equipment"])
     return slice_
