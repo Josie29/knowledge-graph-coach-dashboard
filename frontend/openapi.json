@@ -460,17 +460,7 @@
           },
           "weeks": {
             "items": {
-              "additionalProperties": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "integer"
-                  }
-                ]
-              },
-              "type": "object"
+              "$ref": "#/components/schemas/AdherenceWeek"
             },
             "type": "array",
             "title": "Weeks"
@@ -482,6 +472,26 @@
           "weeks"
         ],
         "title": "AdherenceSlice"
+      },
+      "AdherenceWeek": {
+        "properties": {
+          "week_of": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Of"
+          },
+          "pct": {
+            "type": "number",
+            "title": "Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "week_of",
+          "pct"
+        ],
+        "title": "AdherenceWeek",
+        "description": "One week of completion percentage, as it ships in the member file."
       },
       "Alternative": {
         "properties": {
@@ -544,6 +554,85 @@
         ],
         "title": "BiomarkerSlice"
       },
+      "BriefTask": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/BriefTaskType"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "BriefTask",
+        "description": "One action from the coach's morning brief."
+      },
+      "BriefTaskType": {
+        "type": "string",
+        "enum": [
+          "celebrate",
+          "review_risk"
+        ],
+        "title": "BriefTaskType",
+        "description": "The kind of action a morning-brief task asks the coach to take."
+      },
+      "ChatMessage": {
+        "properties": {
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/ChatSender"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "has_attachments": {
+            "type": "boolean",
+            "title": "Has Attachments"
+          },
+          "attachment_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Attachment Types"
+          },
+          "attachment_captions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Attachment Captions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ts",
+          "sender",
+          "text",
+          "has_attachments"
+        ],
+        "title": "ChatMessage",
+        "description": "One message in the coach/member thread.\n\n``ts`` is timezone-aware; recency against it must be computed from the\nmember's ``now_anchor``, not the wall clock (quirk 13)."
+      },
+      "ChatSender": {
+        "type": "string",
+        "enum": [
+          "coach",
+          "member"
+        ],
+        "title": "ChatSender",
+        "description": "Who wrote a message in the coach/member thread."
+      },
       "ChurnRiskLevel": {
         "type": "string",
         "enum": [
@@ -594,10 +683,7 @@
           },
           "tasks": {
             "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
+              "$ref": "#/components/schemas/BriefTask"
             },
             "type": "array",
             "title": "Tasks"
@@ -666,45 +752,18 @@
           "profile": {
             "anyOf": [
               {
-                "additionalProperties": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "integer"
-                    },
-                    {
-                      "type": "number"
-                    }
-                  ]
-                },
-                "type": "object"
+                "$ref": "#/components/schemas/ProfileFact"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Profile"
+            ]
           },
           "goals": {
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "integer"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/Goal"
                 },
                 "type": "array"
               },
@@ -738,17 +797,7 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "number"
-                      }
-                    ]
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/WeightSample"
                 },
                 "type": "array"
               },
@@ -776,29 +825,7 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "integer"
-                      },
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "items": {
-                          "type": "string"
-                        },
-                        "type": "array"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/WorkoutSummary"
                 },
                 "type": "array"
               },
@@ -812,26 +839,7 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "items": {
-                          "type": "string"
-                        },
-                        "type": "array"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/ChatMessage"
                 },
                 "type": "array"
               },
@@ -865,17 +873,7 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/InjuryFact"
                 },
                 "type": "array"
               },
@@ -919,13 +917,7 @@
             "title": "Name"
           },
           "kind": {
-            "type": "string",
-            "enum": [
-              "explicit",
-              "equipment",
-              "safety"
-            ],
-            "title": "Kind"
+            "$ref": "#/components/schemas/ExclusionKind"
           },
           "reason": {
             "type": "string",
@@ -973,6 +965,16 @@
         "title": "ExcludedExercise",
         "description": "An exercise removed by a filter, with why and what to do instead."
       },
+      "ExclusionKind": {
+        "type": "string",
+        "enum": [
+          "explicit",
+          "equipment",
+          "safety"
+        ],
+        "title": "ExclusionKind",
+        "description": "Which filter stage removed an exercise from the pool.\n\nThe distinction is user-facing: the generator reports safety exclusions\nseparately from the rest, because only the safety ones are clinical."
+      },
       "Goal": {
         "properties": {
           "id": {
@@ -1004,8 +1006,7 @@
         "required": [
           "id",
           "text",
-          "priority",
-          "target_date"
+          "priority"
         ],
         "title": "Goal",
         "description": "A member's coaching goal."
@@ -1174,23 +1175,11 @@
             "title": "Condition Id"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "acute",
-              "recovering",
-              "resolved"
-            ],
-            "title": "Status",
+            "$ref": "#/components/schemas/InjuryStatus",
             "default": "recovering"
           },
           "severity": {
-            "type": "string",
-            "enum": [
-              "mild",
-              "moderate",
-              "severe"
-            ],
-            "title": "Severity",
+            "$ref": "#/components/schemas/InjurySeverity",
             "default": "mild"
           }
         },
@@ -1200,6 +1189,65 @@
         ],
         "title": "InjuryConstraint",
         "description": "One active injury, already resolved to a Condition concept."
+      },
+      "InjuryFact": {
+        "properties": {
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "joint": {
+            "type": "string",
+            "title": "Joint"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InjuryStatus"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/InjurySeverity"
+          },
+          "since": {
+            "type": "string",
+            "format": "date",
+            "title": "Since"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "region",
+          "joint",
+          "status",
+          "severity",
+          "since",
+          "notes"
+        ],
+        "title": "InjuryFact",
+        "description": "One recorded injury, in the member's own record rather than resolved.\n\n``status`` / ``severity`` share the vocabulary the safety rules match on,\nso what a coach reads here and what ``safe_exercise_pool`` filters by\ncannot drift apart."
+      },
+      "InjurySeverity": {
+        "type": "string",
+        "enum": [
+          "mild",
+          "moderate",
+          "severe"
+        ],
+        "title": "InjurySeverity",
+        "description": "How badly an injury presents, as recorded on the member's record."
+      },
+      "InjuryStatus": {
+        "type": "string",
+        "enum": [
+          "acute",
+          "chronic",
+          "recovering",
+          "resolved"
+        ],
+        "title": "InjuryStatus",
+        "description": "How live an injury is, as recorded on the member's injury record.\n\nThe vocabulary is the one contraindications.json writes ``applies_when``\nagainst. ``CHRONIC`` is part of it: four rules (knee OA, both low-back\nrules, carpal tunnel) list it, so omitting it here would make a chronic\ninjury unrepresentable and those rules unreachable for such a member."
       },
       "LabPanelSlice": {
         "properties": {
@@ -1450,6 +1498,82 @@
         "title": "PlannedExercise",
         "description": "One line of the plan, with the graph's justification attached."
       },
+      "ProfileFact": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "age": {
+            "type": "integer",
+            "title": "Age"
+          },
+          "sex": {
+            "type": "string",
+            "title": "Sex"
+          },
+          "height_cm": {
+            "type": "integer",
+            "title": "Height Cm"
+          },
+          "weight_kg": {
+            "type": "number",
+            "title": "Weight Kg"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "member_since": {
+            "type": "string",
+            "format": "date",
+            "title": "Member Since"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "preferred_session_minutes": {
+            "type": "integer",
+            "title": "Preferred Session Minutes"
+          },
+          "training_days_per_week": {
+            "type": "integer",
+            "title": "Training Days Per Week"
+          },
+          "adherence_trend": {
+            "type": "string",
+            "title": "Adherence Trend"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "age",
+          "sex",
+          "height_cm",
+          "weight_kg",
+          "tier",
+          "member_since",
+          "timezone",
+          "preferred_session_minutes",
+          "training_days_per_week",
+          "adherence_trend"
+        ],
+        "title": "ProfileFact",
+        "description": "The member's profile and standing preferences, as KG 2 holds them.\n\nA narrower projection than ``app.members.MemberProfile``: that one backs\nthe dashboard header (and carries ``id`` / ``coach_id``), this one is what\nthe copilot reasons over."
+      },
+      "RuleDecision": {
+        "type": "string",
+        "enum": [
+          "exclude",
+          "downrank",
+          "promote",
+          "allow"
+        ],
+        "title": "RuleDecision",
+        "description": "What a fired safety rule does to a candidate exercise.\n\nOrdered most restrictive first; ``safety._DECISION_RANK`` depends on that\norder for its tie-break, and ``contraindications.json`` documents the same\nprecedence under ``evaluation_semantics.resolution``."
+      },
       "RuleFiring": {
         "properties": {
           "rule_id": {
@@ -1461,14 +1585,7 @@
             "title": "Condition Id"
           },
           "decision": {
-            "type": "string",
-            "enum": [
-              "exclude",
-              "downrank",
-              "promote",
-              "allow"
-            ],
-            "title": "Decision"
+            "$ref": "#/components/schemas/RuleDecision"
           },
           "priority": {
             "type": "integer",
@@ -1486,13 +1603,12 @@
           "escalated_from": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/RuleDecision"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Escalated From"
+            ]
           },
           "anatomy_path": {
             "anyOf": [
@@ -1922,6 +2038,26 @@
         ],
         "title": "ValidationError"
       },
+      "WeightSample": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "kg": {
+            "type": "number",
+            "title": "Kg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "kg"
+        ],
+        "title": "WeightSample",
+        "description": "One dated body-weight reading."
+      },
       "WorkoutPlan": {
         "properties": {
           "title": {
@@ -2031,6 +2167,55 @@
         ],
         "title": "WorkoutRequest",
         "description": "Input to ``POST /api/workout``."
+      },
+      "WorkoutSummary": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "completed": {
+            "type": "boolean",
+            "title": "Completed"
+          },
+          "duration_min": {
+            "type": "integer",
+            "title": "Duration Min"
+          },
+          "rpe": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rpe",
+            "description": "Rate of perceived exertion, absent for a session the member skipped. Absent is not the same as an easy session \u2014 a skipped workout also reports duration_min 0 and no exercises."
+          },
+          "exercise_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Exercise Names"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "title",
+          "completed",
+          "duration_min"
+        ],
+        "title": "WorkoutSummary",
+        "description": "One entry from the member's workout history.\n\n``exercise_names`` is free text that matches nothing in the exercise\ncatalog (docs/data-overview.md quirk 10) \u2014 it must not be joined against\n``Exercise`` ids."
       }
     }
   }

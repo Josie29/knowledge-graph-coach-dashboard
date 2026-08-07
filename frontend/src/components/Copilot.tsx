@@ -341,7 +341,7 @@ function HistoryTab({ slice }: { slice: ContextSlice }) {
     <ul className="flex max-h-96 flex-col gap-2 overflow-y-auto">
       {history.map((message, index) => {
         const fromMember = message.sender === 'member'
-        const captions = (message.attachment_captions ?? []) as string[]
+        const captions = message.attachment_captions ?? []
         return (
           <li
             key={index}
@@ -351,10 +351,10 @@ function HistoryTab({ slice }: { slice: ContextSlice }) {
             )}
           >
             <p className="text-[10px] uppercase text-muted-foreground">
-              {String(message.sender)} · {String(message.ts).slice(0, 16).replace('T', ' ')}
+              {message.sender} · {message.ts.slice(0, 16).replace('T', ' ')}
             </p>
-            <p>{String(message.text)}</p>
-            {Boolean(message.has_attachments) &&
+            <p>{message.text}</p>
+            {message.has_attachments &&
               captions.map((caption, captionIndex) => (
                 <div
                   key={captionIndex}

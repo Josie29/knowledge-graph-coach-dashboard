@@ -284,9 +284,20 @@ export interface components {
             /** Trend */
             trend: string;
             /** Weeks */
-            weeks: {
-                [key: string]: string | number;
-            }[];
+            weeks: components["schemas"]["AdherenceWeek"][];
+        };
+        /**
+         * AdherenceWeek
+         * @description One week of completion percentage, as it ships in the member file.
+         */
+        AdherenceWeek: {
+            /**
+             * Week Of
+             * Format: date
+             */
+            week_of: string;
+            /** Pct */
+            pct: number;
         };
         /**
          * Alternative
@@ -311,6 +322,50 @@ export interface components {
             /** Sleep Hours Last 7 Days */
             sleep_hours_last_7_days: number[];
         };
+        /**
+         * BriefTask
+         * @description One action from the coach's morning brief.
+         */
+        BriefTask: {
+            type: components["schemas"]["BriefTaskType"];
+            /** Text */
+            text: string;
+        };
+        /**
+         * BriefTaskType
+         * @description The kind of action a morning-brief task asks the coach to take.
+         * @enum {string}
+         */
+        BriefTaskType: "celebrate" | "review_risk";
+        /**
+         * ChatMessage
+         * @description One message in the coach/member thread.
+         *
+         *     ``ts`` is timezone-aware; recency against it must be computed from the
+         *     member's ``now_anchor``, not the wall clock (quirk 13).
+         */
+        ChatMessage: {
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+            sender: components["schemas"]["ChatSender"];
+            /** Text */
+            text: string;
+            /** Has Attachments */
+            has_attachments: boolean;
+            /** Attachment Types */
+            attachment_types?: string[];
+            /** Attachment Captions */
+            attachment_captions?: string[];
+        };
+        /**
+         * ChatSender
+         * @description Who wrote a message in the coach/member thread.
+         * @enum {string}
+         */
+        ChatSender: "coach" | "member";
         /**
          * ChurnRiskLevel
          * @description The band a member's churn score falls into.
@@ -338,9 +393,7 @@ export interface components {
             /** Generated For */
             generated_for: string;
             /** Tasks */
-            tasks: {
-                [key: string]: string;
-            }[];
+            tasks: components["schemas"]["BriefTask"][];
         };
         /**
          * ConstraintSet
@@ -376,36 +429,23 @@ export interface components {
              * @description The dataset's 'today'. All recency/trend statements must be computed against this date, never the wall clock.
              */
             now_anchor: string;
-            /** Profile */
-            profile?: {
-                [key: string]: string | number;
-            } | null;
+            profile?: components["schemas"]["ProfileFact"] | null;
             /** Goals */
-            goals?: {
-                [key: string]: string | number | null;
-            }[] | null;
+            goals?: components["schemas"]["Goal"][] | null;
             adherence?: components["schemas"]["AdherenceSlice"] | null;
             biomarkers?: components["schemas"]["BiomarkerSlice"] | null;
             /** Weight Trend */
-            weight_trend?: {
-                [key: string]: string | number;
-            }[] | null;
+            weight_trend?: components["schemas"]["WeightSample"][] | null;
             /** Labs */
             labs?: components["schemas"]["LabPanelSlice"][] | null;
             /** Workout History */
-            workout_history?: {
-                [key: string]: string | number | boolean | string[] | null;
-            }[] | null;
+            workout_history?: components["schemas"]["WorkoutSummary"][] | null;
             /** Chat History */
-            chat_history?: {
-                [key: string]: string | boolean | string[] | null;
-            }[] | null;
+            chat_history?: components["schemas"]["ChatMessage"][] | null;
             coach_brief?: components["schemas"]["CoachBriefSlice"] | null;
             churn_risk?: components["schemas"]["ChurnRiskSlice"] | null;
             /** Injuries */
-            injuries?: {
-                [key: string]: string | null;
-            }[] | null;
+            injuries?: components["schemas"]["InjuryFact"][] | null;
             /** Equipment */
             equipment?: string[] | null;
         };
@@ -418,11 +458,7 @@ export interface components {
             exercise_id: string;
             /** Name */
             name: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "explicit" | "equipment" | "safety";
+            kind: components["schemas"]["ExclusionKind"];
             /** Reason */
             reason: string;
             /** Missing Equipment */
@@ -433,6 +469,15 @@ export interface components {
             /** Alternatives */
             alternatives?: components["schemas"]["Alternative"][];
         };
+        /**
+         * ExclusionKind
+         * @description Which filter stage removed an exercise from the pool.
+         *
+         *     The distinction is user-facing: the generator reports safety exclusions
+         *     separately from the rest, because only the safety ones are clinical.
+         * @enum {string}
+         */
+        ExclusionKind: "explicit" | "equipment" | "safety";
         /**
          * Goal
          * @description A member's coaching goal.
@@ -445,7 +490,7 @@ export interface components {
             /** Priority */
             priority: number;
             /** Target Date */
-            target_date: string | null;
+            target_date?: string | null;
         };
         /**
          * GraphEdge
@@ -537,19 +582,51 @@ export interface components {
         InjuryConstraint: {
             /** Condition Id */
             condition_id: string;
-            /**
-             * Status
-             * @default recovering
-             * @enum {string}
-             */
-            status: "acute" | "recovering" | "resolved";
-            /**
-             * Severity
-             * @default mild
-             * @enum {string}
-             */
-            severity: "mild" | "moderate" | "severe";
+            /** @default recovering */
+            status: components["schemas"]["InjuryStatus"];
+            /** @default mild */
+            severity: components["schemas"]["InjurySeverity"];
         };
+        /**
+         * InjuryFact
+         * @description One recorded injury, in the member's own record rather than resolved.
+         *
+         *     ``status`` / ``severity`` share the vocabulary the safety rules match on,
+         *     so what a coach reads here and what ``safe_exercise_pool`` filters by
+         *     cannot drift apart.
+         */
+        InjuryFact: {
+            /** Region */
+            region: string;
+            /** Joint */
+            joint: string;
+            status: components["schemas"]["InjuryStatus"];
+            severity: components["schemas"]["InjurySeverity"];
+            /**
+             * Since
+             * Format: date
+             */
+            since: string;
+            /** Notes */
+            notes: string;
+        };
+        /**
+         * InjurySeverity
+         * @description How badly an injury presents, as recorded on the member's record.
+         * @enum {string}
+         */
+        InjurySeverity: "mild" | "moderate" | "severe";
+        /**
+         * InjuryStatus
+         * @description How live an injury is, as recorded on the member's injury record.
+         *
+         *     The vocabulary is the one contraindications.json writes ``applies_when``
+         *     against. ``CHRONIC`` is part of it: four rules (knee OA, both low-back
+         *     rules, carpal tunnel) list it, so omitting it here would make a chronic
+         *     injury unrepresentable and those rules unreachable for such a member.
+         * @enum {string}
+         */
+        InjuryStatus: "acute" | "chronic" | "recovering" | "resolved";
         /** LabPanelSlice */
         LabPanelSlice: {
             /** Panel Type */
@@ -649,6 +726,51 @@ export interface components {
             pool_notes?: string[];
         };
         /**
+         * ProfileFact
+         * @description The member's profile and standing preferences, as KG 2 holds them.
+         *
+         *     A narrower projection than ``app.members.MemberProfile``: that one backs
+         *     the dashboard header (and carries ``id`` / ``coach_id``), this one is what
+         *     the copilot reasons over.
+         */
+        ProfileFact: {
+            /** Name */
+            name: string;
+            /** Age */
+            age: number;
+            /** Sex */
+            sex: string;
+            /** Height Cm */
+            height_cm: number;
+            /** Weight Kg */
+            weight_kg: number;
+            /** Tier */
+            tier: string;
+            /**
+             * Member Since
+             * Format: date
+             */
+            member_since: string;
+            /** Timezone */
+            timezone: string;
+            /** Preferred Session Minutes */
+            preferred_session_minutes: number;
+            /** Training Days Per Week */
+            training_days_per_week: number;
+            /** Adherence Trend */
+            adherence_trend: string;
+        };
+        /**
+         * RuleDecision
+         * @description What a fired safety rule does to a candidate exercise.
+         *
+         *     Ordered most restrictive first; ``safety._DECISION_RANK`` depends on that
+         *     order for its tie-break, and ``contraindications.json`` documents the same
+         *     precedence under ``evaluation_semantics.resolution``.
+         * @enum {string}
+         */
+        RuleDecision: "exclude" | "downrank" | "promote" | "allow";
+        /**
          * RuleFiring
          * @description One safety rule that fired for one exercise.
          */
@@ -657,11 +779,7 @@ export interface components {
             rule_id: string;
             /** Condition Id */
             condition_id: string;
-            /**
-             * Decision
-             * @enum {string}
-             */
-            decision: "exclude" | "downrank" | "promote" | "allow";
+            decision: components["schemas"]["RuleDecision"];
             /** Priority */
             priority: number;
             /**
@@ -671,8 +789,7 @@ export interface components {
             score_delta: number;
             /** Rationale */
             rationale: string;
-            /** Escalated From */
-            escalated_from?: string | null;
+            escalated_from?: components["schemas"]["RuleDecision"] | null;
             anatomy_path?: components["schemas"]["GraphPath"] | null;
         };
         /**
@@ -827,6 +944,19 @@ export interface components {
             ctx?: Record<string, never>;
         };
         /**
+         * WeightSample
+         * @description One dated body-weight reading.
+         */
+        WeightSample: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Kg */
+            kg: number;
+        };
+        /**
          * WorkoutPlan
          * @description The typed response of ``POST /api/workout`` (doubles as the schema).
          */
@@ -864,6 +994,34 @@ export interface components {
             /** Time Window Minutes */
             time_window_minutes: number;
             prior_constraints?: components["schemas"]["ConstraintSet"] | null;
+        };
+        /**
+         * WorkoutSummary
+         * @description One entry from the member's workout history.
+         *
+         *     ``exercise_names`` is free text that matches nothing in the exercise
+         *     catalog (docs/data-overview.md quirk 10) — it must not be joined against
+         *     ``Exercise`` ids.
+         */
+        WorkoutSummary: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Title */
+            title: string;
+            /** Completed */
+            completed: boolean;
+            /** Duration Min */
+            duration_min: number;
+            /**
+             * Rpe
+             * @description Rate of perceived exertion, absent for a session the member skipped. Absent is not the same as an easy session — a skipped workout also reports duration_min 0 and no exercises.
+             */
+            rpe?: number | null;
+            /** Exercise Names */
+            exercise_names?: string[];
         };
     };
     responses: never;

@@ -10,21 +10,13 @@ from neo4j.exceptions import Neo4jError, ServiceUnavailable
 from pydantic import BaseModel, ValidationError
 
 from app.config import settings
+from app.kg.member_facts import Goal
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/members", tags=["members"])
 
 GRAPH_READ_TIMEOUT_SECONDS = 3.0
-
-
-class Goal(BaseModel):
-    """A member's coaching goal."""
-
-    id: str
-    text: str
-    priority: int
-    target_date: date | None
 
 
 class MemberProfile(BaseModel):
