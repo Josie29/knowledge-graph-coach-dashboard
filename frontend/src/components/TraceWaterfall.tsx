@@ -30,6 +30,23 @@ const CATEGORY_LABEL: Record<SpanCategory, string> = {
 /** Maximum nesting indent, so a deep trace never squeezes the label column. */
 const MAX_DEPTH = 5
 
+/**
+ * Label a span with something that distinguishes it from its siblings.
+ *
+ * Every graph span is named `neo4j.query`, so a 3 ms exact-match lookup and a
+ * 125 ms vector search are indistinguishable in the timeline. The first line of
+ * the statement is already recorded, and it is what actually tells a resolver
+ * pass apart from the safety-catalog fetch — so show that instead of the name.
+ *
+ * @param span - The span being rendered.
+ * @returns The text for the span's row.
+ */
+function spanLabel(span: TraceSpan): string {
+  if (span.category !== 'db') return span.name
+  const statement = span.attributes?.['db.statement.summary']
+  return typeof statement === 'string' && statement ? statement : span.name
+}
+
 interface PositionedSpan {
   span: TraceSpan
   depth: number
@@ -174,7 +191,16 @@ export function TraceWaterfall({ spans }: { spans: TraceSpan[] }) {
                 <Badge variant="secondary" className="shrink-0">
                   {CATEGORY_LABEL[span.category]}
                 </Badge>
-                <span className="truncate text-sm">{span.name}</span>
+                <span
+                  className={cn(
+                    'truncate text-sm',
+                    // Cypher reads better monospaced, and the visual break
+                    // makes the graph rows scannable against agent rows.
+                    span.category === 'db' && 'font-mono text-xs',
+                  )}
+                >
+                  {spanLabel(span)}
+                </span>
                 {span.status === 'error' && (
                   <Badge variant="destructive" className="shrink-0">
                     error

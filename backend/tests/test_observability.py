@@ -677,6 +677,70 @@ def test_the_ai_filter_hides_traces_with_no_llm_call(
     assert [summary.trace_id for summary in ai_only] == [f"{0x22:032x}"]
 
 
+def test_the_header_figures_describe_the_traces_being_shown(
+    store: TraceStore, exporter: SqlSpanExporter
+) -> None:
+    """Catches the bug where the stat tiles contradict the list under them:
+    the header said 46 traces and 67 graph queries while the AI-runs list
+    showed a single run with 11, so neither number could be trusted.
+    """
+    exporter.export(
+        [
+            make_span(
+                "GET /api/graph/member/{member_id}",
+                trace_id=0x11,
+                span_id=0x1,
+                attributes={"db.system": "neo4j"},
+            ),
+            make_span(
+                "chat claude",
+                trace_id=0x22,
+                span_id=0x2,
+                attributes={
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.input_tokens": 40,
+                },
+            ),
+        ]
+    )
+
+    everything = store.stats(trace_filter=TraceFilter.ALL)
+    assert (everything.trace_count, everything.graph_query_count) == (2, 1)
+
+    ai_only = store.stats(trace_filter=TraceFilter.AI)
+    assert (ai_only.trace_count, ai_only.graph_query_count) == (1, 0)
+    # Tokens and cost are unchanged by the filter: only AI traces have them.
+    assert ai_only.total_tokens == everything.total_tokens == 40
+
+
+def test_graph_spans_keep_the_statement_that_identifies_them(
+    store: TraceStore, exporter: SqlSpanExporter
+) -> None:
+    """Catches the bug where every graph row in the waterfall reads
+    "neo4j.query", so a 3 ms exact-match lookup and a 125 ms vector search are
+    indistinguishable and the resolver cannot be debugged from the trace.
+
+    The timeline labels graph rows with this attribute, so dropping it at
+    ingest would silently flatten them again.
+    """
+    exporter.export(
+        [
+            make_span(
+                "neo4j.query",
+                attributes={
+                    "db.system": "neo4j",
+                    "db.statement.summary": "CALL db.index.vector.queryNodes(",
+                },
+            )
+        ]
+    )
+
+    span = store.get_trace(store.list_traces()[0].trace_id).spans[0]
+    assert span.attributes["db.statement.summary"] == (
+        "CALL db.index.vector.queryNodes("
+    )
+
+
 def test_filters_apply_before_the_limit(
     store: TraceStore, exporter: SqlSpanExporter
 ) -> None:
