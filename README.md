@@ -81,7 +81,7 @@ flowchart LR
 
     CLAUDE["Claude API<br/>(model = env switch)"]
     FE["fastembed<br/>local ONNX embeddings"]
-    LF["Langfuse (OTel traces)"]
+    TR["Trace store (Postgres)<br/>OTel spans → Traces tab"]
     BUILD["scripts/build_kg.py — rdflib parses data/ontology + datasets,<br/>emits Cypher, embeds concepts (build time)"]
 
     GEN --> WR --> EX & PL
@@ -96,7 +96,7 @@ flowchart LR
     CTX --> KG2
     RES --> FE
     BUILD --> KG1 & KG2
-    Agents & Tools -. OTel spans .-> LF
+    Agents & Tools -. OTel spans .-> TR
 ```
 
 The load-bearing decision is the boundary between the agents and the tool layer: the
@@ -217,7 +217,7 @@ The full decision docs: **[docs/tech-stack.md](docs/tech-stack.md)**,
 | Claude via one env switch | `ANTHROPIC_MODEL` in `.env` (`claude-haiku-4-5` to validate cheaply, `claude-opus-5` for demo runs). Effort settings are applied only on models that support them — the single place that branches on model. |
 | FastAPI + uv · React 19 + Vite + Tailwind + shadcn | Boring, fast, typed. Frontend API types are *generated* from the Pydantic schemas (`npm run gen:api`). |
 | Recharts | The copilot emits declarative JSON chart specs; Recharts' props match that shape 1:1. |
-| Langfuse (cloud free tier) via OTel | Pydantic AI emits OTel natively; self-hosting Langfuse v3 needs four extra containers and blows the ~1.2 GB memory budget. Tracing is opt-in and no-op without keys. |
+| Self-hosted trace store (Postgres) via OTel | Pydantic AI emits OTel natively, so the sink is swappable; writing to one local Postgres (~256 MB) means tracing works with no account and no keys, where a cloud tier left reviewers with no observability at all. OTel is the seam: swapping agent frameworks touches one module. |
 
 One deviation from plan, stated honestly: the tech-stack doc named Vercel AI Elements for
 the chat panel; its component registry was unreachable from the build environment, so the
@@ -257,14 +257,23 @@ guards; each module documents why its paths are the critical ones.
 
 ## Observability
 
-Set `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY` in `.env` (free project at
-[cloud.langfuse.com](https://cloud.langfuse.com); US-region accounts also set
-`LANGFUSE_HOST=https://us.cloud.langfuse.com`), restart, then generate one workout and
-ask the copilot one question. Each appears under **Traces** as an agent run
-(`constraint-extractor` / `workout-planner` / `member-copilot`) with the model requests,
-tool calls, and `neo4j.query` spans (statement summary + row counts) nested inside — one
-trace shows prompt → resolution → traversal → composition end to end. Without keys the
-spans are no-ops.
+Nothing to configure: generate one workout and ask the copilot one question, then open the
+**Traces** tab. Full details in **[docs/observability.md](docs/observability.md)**.
+
+Every LLM call, tool call, and Neo4j query is recorded as an OpenTelemetry span in a local
+Postgres. One API request is one trace, so a single `POST /api/workout` reads end to end —
+member defaults, the `constraint-extractor` and `workout-planner` agent runs with their
+model requests, the resolver and safety `neo4j.query` traversals — with per-span timings,
+token counts, cost, and truncated prompts and completions. `/api/health` is excluded, since
+the healthcheck polls it every five seconds.
+
+The design point is that **OpenTelemetry is the seam, not the vendor**. Pydantic AI emits
+OTel spans natively, so the store, read API, and UI never learn what framework produced
+them: one module (`app/observability/ingest.py`) maps raw spans onto the app's own shape,
+and a test asserts no `gen_ai.*` key appears anywhere else. Swapping Pydantic AI for
+LangGraph or the raw Anthropic SDK is a one-file edit. That also means the sink is
+swappable — `OBS_DATABASE_URL` alone switches the Postgres service for a SQLite file, which
+is the default when running outside Docker.
 
 ## Evaluating this in production
 
@@ -338,8 +347,9 @@ through the same checks as any code: `pytest`, `tsc`, lint, and the golden scena
 | `scripts/build_kg.py` | Builds both graphs (rdflib → Cypher, embeddings, integrity checks, post-load verification) |
 | `backend/app/kg/` | The deterministic tool layer: resolver, safety traversal, embeddings |
 | `backend/app/agents/` | Pydantic AI agents: extractor, planner, copilot + the model switch |
-| `backend/app/` | FastAPI routers: members, workout, copilot (AG-UI), observability |
-| `backend/tests/` | Resolver + safety suites (unit offline, integration on the live graph) |
-| `frontend/src/` | Dashboard shell, generator panel, copilot panel, generated API types |
+| `backend/app/` | FastAPI routers: members, workout, copilot (AG-UI) |
+| `backend/app/observability/` | Trace store: span ingest (the framework seam), SQL store, exporter, `/api/traces` |
+| `backend/tests/` | Resolver + safety + tracing suites (unit offline, integration on the live graph) |
+| `frontend/src/` | Dashboard shell, generator panel, copilot panel, traces view, generated API types |
 | `data/ontology/` | The curated ontology subset (see its README) |
 | `docs/` | Schema, dataset guide, decision docs, example runs |

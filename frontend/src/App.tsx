@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { DashboardHeader, type DashboardView } from '@/components/DashboardHeader'
 import { LoginScreen } from '@/components/LoginScreen'
 import { MemberView } from '@/components/MemberView'
+import { TracesView } from '@/components/TracesView'
 import {
   clearSession,
   loadSession,
@@ -10,11 +12,12 @@ import {
 } from '@/lib/session'
 
 /**
- * Dashboard shell: mock coach login gating the member view.
+ * Dashboard shell: mock coach login gating the member and traces views.
  * The session persists in localStorage so a refresh stays signed in.
  */
 function App() {
   const [session, setSession] = useState<CoachSession | null>(() => loadSession())
+  const [view, setView] = useState<DashboardView>('member')
 
   if (!session) {
     return (
@@ -28,13 +31,18 @@ function App() {
   }
 
   return (
-    <MemberView
-      session={session}
-      onSignOut={() => {
-        clearSession()
-        setSession(null)
-      }}
-    />
+    <div className="flex min-h-dvh flex-col bg-background">
+      <DashboardHeader
+        session={session}
+        view={view}
+        onViewChange={setView}
+        onSignOut={() => {
+          clearSession()
+          setSession(null)
+        }}
+      />
+      {view === 'member' ? <MemberView /> : <TracesView />}
+    </div>
   )
 }
 

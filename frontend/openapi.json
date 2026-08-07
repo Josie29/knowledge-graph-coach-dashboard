@@ -212,6 +212,163 @@
         }
       }
     },
+    "/api/traces": {
+      "get": {
+        "tags": [
+          "observability"
+        ],
+        "summary": "List Traces",
+        "description": "List recent traces, newest first.\n\nArgs:\n    request: The incoming request.\n    limit: Maximum traces to return.\n    status: Optional filter on whether the trace contains a failed span.\n\nReturns:\n    Trace summaries with span counts, token usage, and cost.\n\nRaises:\n    HTTPException: 503 when tracing is disabled or the store is unreachable.",
+        "operationId": "list_traces_api_traces_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SpanStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keep only successful or only failed traces.",
+              "title": "Status"
+            },
+            "description": "Keep only successful or only failed traces."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TraceSummary"
+                  },
+                  "title": "Response List Traces Api Traces Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traces/stats": {
+      "get": {
+        "tags": [
+          "observability"
+        ],
+        "summary": "Trace Stats",
+        "description": "Summarise recent tracing activity.\n\nArgs:\n    request: The incoming request.\n    window_hours: How far back to aggregate, up to one week.\n\nReturns:\n    Counts, token and cost totals, and latency percentiles.\n\nRaises:\n    HTTPException: 503 when tracing is disabled or the store is unreachable.",
+        "operationId": "trace_stats_api_traces_stats_get",
+        "parameters": [
+          {
+            "name": "window_hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 168,
+              "minimum": 1,
+              "default": 24,
+              "title": "Window Hours"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceStats"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traces/{trace_id}": {
+      "get": {
+        "tags": [
+          "observability"
+        ],
+        "summary": "Get Trace",
+        "description": "Fetch one trace and every span inside it.\n\nArgs:\n    request: The incoming request.\n    trace_id: The 32-character hex trace id.\n\nReturns:\n    The trace summary plus its spans, ordered by start time.\n\nRaises:\n    HTTPException: 404 when no such trace is stored, 503 when tracing is\n        disabled or the store is unreachable.",
+        "operationId": "get_trace_api_traces__trace_id__get",
+        "parameters": [
+          {
+            "name": "trace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Trace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -818,6 +975,14 @@
           "members": {
             "type": "integer",
             "title": "Members"
+          },
+          "tracing_enabled": {
+            "type": "boolean",
+            "title": "Tracing Enabled"
+          },
+          "traces_recorded": {
+            "type": "integer",
+            "title": "Traces Recorded"
           }
         },
         "type": "object",
@@ -827,7 +992,9 @@
           "ai_enabled",
           "model",
           "exercises",
-          "members"
+          "members",
+          "tracing_enabled",
+          "traces_recorded"
         ],
         "title": "HealthResponse",
         "description": "Health check result for the API and its Neo4j dependency."
@@ -1135,6 +1302,354 @@
         ],
         "title": "RuleFiring",
         "description": "One safety rule that fired for one exercise."
+      },
+      "SpanCategory": {
+        "type": "string",
+        "enum": [
+          "agent",
+          "llm",
+          "tool",
+          "db",
+          "http",
+          "other"
+        ],
+        "title": "SpanCategory",
+        "description": "What kind of work a span represents, in the app's own vocabulary."
+      },
+      "SpanStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "error",
+          "unset"
+        ],
+        "title": "SpanStatus",
+        "description": "Outcome of a span, flattened from OpenTelemetry's status code."
+      },
+      "TraceDetail": {
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/TraceSummary"
+          },
+          "spans": {
+            "items": {
+              "$ref": "#/components/schemas/TraceSpan"
+            },
+            "type": "array",
+            "title": "Spans"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "spans"
+        ],
+        "title": "TraceDetail",
+        "description": "A trace summary plus every span in it, ordered by start time."
+      },
+      "TraceSpan": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id"
+          },
+          "parent_span_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Span Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "$ref": "#/components/schemas/SpanCategory"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "duration_ms": {
+            "type": "number",
+            "title": "Duration Ms"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SpanStatus"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "tool_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Name"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "cost_micro_usd": {
+            "type": "integer",
+            "title": "Cost Micro Usd"
+          },
+          "input_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Preview"
+          },
+          "output_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Preview"
+          },
+          "input_truncated": {
+            "type": "boolean",
+            "title": "Input Truncated"
+          },
+          "output_truncated": {
+            "type": "boolean",
+            "title": "Output Truncated"
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "parent_span_id",
+          "name",
+          "category",
+          "started_at",
+          "duration_ms",
+          "status",
+          "error_message",
+          "model",
+          "tool_name",
+          "input_tokens",
+          "output_tokens",
+          "cost_micro_usd",
+          "input_preview",
+          "output_preview",
+          "input_truncated",
+          "output_truncated"
+        ],
+        "title": "TraceSpan",
+        "description": "One span as the trace detail view shows it."
+      },
+      "TraceStats": {
+        "properties": {
+          "window_hours": {
+            "type": "integer",
+            "title": "Window Hours"
+          },
+          "trace_count": {
+            "type": "integer",
+            "title": "Trace Count"
+          },
+          "error_trace_count": {
+            "type": "integer",
+            "title": "Error Trace Count"
+          },
+          "llm_call_count": {
+            "type": "integer",
+            "title": "Llm Call Count"
+          },
+          "graph_query_count": {
+            "type": "integer",
+            "title": "Graph Query Count"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens"
+          },
+          "total_cost_micro_usd": {
+            "type": "integer",
+            "title": "Total Cost Micro Usd"
+          },
+          "p50_duration_ms": {
+            "type": "number",
+            "title": "P50 Duration Ms"
+          },
+          "p95_duration_ms": {
+            "type": "number",
+            "title": "P95 Duration Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "window_hours",
+          "trace_count",
+          "error_trace_count",
+          "llm_call_count",
+          "graph_query_count",
+          "total_tokens",
+          "total_cost_micro_usd",
+          "p50_duration_ms",
+          "p95_duration_ms"
+        ],
+        "title": "TraceStats",
+        "description": "Aggregate figures over a recent window, for the traces page header."
+      },
+      "TraceSummary": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route"
+          },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Id"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "duration_ms": {
+            "type": "number",
+            "title": "Duration Ms"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SpanStatus"
+          },
+          "span_count": {
+            "type": "integer",
+            "title": "Span Count"
+          },
+          "llm_count": {
+            "type": "integer",
+            "title": "Llm Count"
+          },
+          "tool_count": {
+            "type": "integer",
+            "title": "Tool Count"
+          },
+          "db_count": {
+            "type": "integer",
+            "title": "Db Count"
+          },
+          "error_count": {
+            "type": "integer",
+            "title": "Error Count"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "cost_micro_usd": {
+            "type": "integer",
+            "title": "Cost Micro Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "name",
+          "route",
+          "agent_name",
+          "member_id",
+          "started_at",
+          "duration_ms",
+          "status",
+          "span_count",
+          "llm_count",
+          "tool_count",
+          "db_count",
+          "error_count",
+          "input_tokens",
+          "output_tokens",
+          "cost_micro_usd"
+        ],
+        "title": "TraceSummary",
+        "description": "One request's worth of spans, rolled up for the traces list."
       },
       "ValidationError": {
         "properties": {

@@ -29,11 +29,21 @@ class Settings(BaseSettings):
     anthropic_model: ClaudeModel = ClaudeModel.HAIKU_4_5
     # Override with DATA_DIR in Docker, where data/ is mounted elsewhere.
     data_dir: Path = _REPO_ROOT / "data"
-    # Langfuse tracing (issue #13) — optional; tracing is a no-op when the
-    # keys are unset. US-region accounts set https://us.cloud.langfuse.com.
-    langfuse_public_key: str | None = None
-    langfuse_secret_key: str | None = None
-    langfuse_host: str = "https://cloud.langfuse.com"
+
+    # --- Local trace store (see docs/observability.md) ---
+    obs_enabled: bool = True
+    # SQLAlchemy URL. SQLite by default so `uv run uvicorn` and pytest need no
+    # container; docker-compose overrides this with the Postgres service. The
+    # store is deliberately reachable by URL alone — that is the whole
+    # portability claim, so keep the SQL dialect-neutral.
+    obs_database_url: str = f"sqlite+pysqlite:///{_REPO_ROOT / 'traces.db'}"
+    # Prompts and completions are useful for debugging a bad plan, but the
+    # message history grows every turn, so it is stored truncated.
+    obs_capture_content: bool = True
+    obs_content_max_chars: int = 2000
+    obs_retention_days: int = 7
+    # The retention sweep piggybacks on span export rather than a scheduler.
+    obs_sweep_interval_seconds: int = 3600
 
 
 settings = Settings()
