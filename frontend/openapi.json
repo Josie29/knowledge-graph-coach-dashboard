@@ -212,6 +212,61 @@
         }
       }
     },
+    "/api/graph/member/{member_id}": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Get Member Subgraph",
+        "description": "Return the member-centric subgraph behind the coach's safety decisions.\n\nTwo layers in one payload: the stored edges from the member out through\ntheir injuries to the exercises that load the affected joints, and a\ncomputed overlay marking which of those exercises a safety rule excludes.\n\nArgs:\n    member_id: Member identifier, e.g. ``mbr_01HX9JORDAN``.\n    request: Current request; carries the app-lifetime Neo4j driver.\n    include_neighbors: Whether to expand exercises to their concepts.\n\nReturns:\n    MemberSubgraphResponse whose every edge endpoint resolves to a node in\n    the same payload.\n\nRaises:\n    HTTPException: 404 when the member is not in the graph; 503 when Neo4j\n        is unreachable. Unlike the members route there is no seed-file\n        fallback \u2014 a graph view served from a JSON file would misrepresent\n        what the graph actually holds.",
+        "operationId": "get_member_subgraph_api_graph_member__member_id__get",
+        "parameters": [
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Member Id"
+            }
+          },
+          {
+            "name": "include_neighbors",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include each exercise's muscle groups, equipment, and movement patterns. Turn off for a smaller, more legible graph.",
+              "default": true,
+              "title": "Include Neighbors"
+            },
+            "description": "Include each exercise's muscle groups, equipment, and movement patterns. Turn off for a smaller, more legible graph."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberSubgraphResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/traces": {
       "get": {
         "tags": [
@@ -910,6 +965,74 @@
         "title": "Goal",
         "description": "A member's coaching goal."
       },
+      "GraphEdge": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "derived": {
+            "type": "boolean",
+            "title": "Derived",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "target",
+          "type"
+        ],
+        "title": "GraphEdge",
+        "description": "One edge in the member subgraph.\n\n``derived`` marks edges the graph does not store \u2014 currently only\n``BLOCKS``, which the safety layer computes. The UI dashes them so the\npicture never implies a relationship that is not in Neo4j."
+      },
+      "GraphNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "properties": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Properties"
+          },
+          "blocked": {
+            "type": "boolean",
+            "title": "Blocked",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "type"
+        ],
+        "title": "GraphNode",
+        "description": "One node in the member subgraph, normalised for rendering."
+      },
       "GraphPath": {
         "properties": {
           "nodes": {
@@ -1129,6 +1252,51 @@
         ],
         "title": "MemberResponse",
         "description": "Member context served to the dashboard: profile header plus goals."
+      },
+      "MemberSubgraphResponse": {
+        "properties": {
+          "member_id": {
+            "type": "string",
+            "title": "Member Id"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/GraphNode"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/GraphEdge"
+            },
+            "type": "array",
+            "title": "Edges"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "member_id",
+          "nodes",
+          "edges",
+          "counts"
+        ],
+        "title": "MemberSubgraphResponse",
+        "description": "The member-centric subgraph plus what the legend needs."
       },
       "PlanSection": {
         "properties": {

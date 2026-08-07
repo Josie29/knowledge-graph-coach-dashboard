@@ -4,10 +4,11 @@ import { cn } from '@/lib/utils'
 import type { CoachSession } from '@/lib/session'
 
 /** Top-level screens the dashboard can show. */
-export type DashboardView = 'member' | 'traces'
+export type DashboardView = 'dashboard' | 'graph' | 'traces'
 
 const VIEWS: ReadonlyArray<{ id: DashboardView; label: string }> = [
-  { id: 'member', label: 'Member' },
+  { id: 'dashboard', label: 'Coaching tools' },
+  { id: 'graph', label: 'Knowledge graph' },
   { id: 'traces', label: 'Traces' },
 ]
 

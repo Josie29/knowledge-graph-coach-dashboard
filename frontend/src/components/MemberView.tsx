@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -11,6 +11,15 @@ type MemberState =
   | { kind: 'loading' }
   | { kind: 'loaded'; member: MemberResponse }
   | { kind: 'error'; message: string }
+
+/** Which member-scoped panel to show below the profile. */
+export type MemberPanel = 'dashboard' | 'graph'
+
+// Lazy: the force-graph renderer is ~700 kB and this is the secondary tab, so
+// the dashboard's first paint should not pay for it.
+const GraphView = lazy(() =>
+  import('@/components/GraphView').then((module) => ({ default: module.GraphView })),
+)
 
 /**
  * Format an ISO date string as a short month-year label, e.g. "Sep 2024".
@@ -41,11 +50,14 @@ function GoalItem({ goal }: { goal: Goal }) {
 }
 
 /**
- * The coach's member view: profile header for the selected member plus the
- * Workout Generator and AI Copilot panels. The dashboard chrome around it
- * lives in DashboardHeader, shared with the Traces view.
+ * The coach's member view: profile header for the selected member plus either
+ * the coaching tools or the knowledge-graph explorer.
+ *
+ * The profile stays visible across both panels because both are scoped to this
+ * member. The dashboard chrome around it lives in DashboardHeader, shared with
+ * the Traces view.
  */
-export function MemberView() {
+export function MemberView({ panel }: { panel: MemberPanel }) {
   const [state, setState] = useState<MemberState>({ kind: 'loading' })
 
   useEffect(() => {
@@ -100,13 +112,28 @@ export function MemberView() {
 
       <Separator />
 
-      <section
-        aria-label="Coaching tools"
-        className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-2"
-      >
-        <WorkoutGenerator memberId={JORDAN_MEMBER_ID} />
-        <Copilot memberId={JORDAN_MEMBER_ID} />
-      </section>
+      {panel === 'dashboard' ? (
+        <section
+          aria-label="Coaching tools"
+          className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-2"
+        >
+          <WorkoutGenerator memberId={JORDAN_MEMBER_ID} />
+          <Copilot memberId={JORDAN_MEMBER_ID} />
+        </section>
+      ) : (
+        <section aria-label="Knowledge graph" className="flex flex-1 flex-col">
+          <Suspense
+            fallback={
+              <div className="flex flex-col gap-3">
+                <Skeleton className="h-6 w-64" />
+                <Skeleton className="h-[32rem] w-full" />
+              </div>
+            }
+          >
+            <GraphView memberId={JORDAN_MEMBER_ID} />
+          </Suspense>
+        </section>
+      )}
     </main>
   )
 }

@@ -6,6 +6,10 @@ __pycache__/
 .pytest_cache/
 node_modules/
 dist/
+
 # Trace store when running outside Docker, where OBS_DATABASE_URL defaults to
 # a local SQLite file instead of the Postgres service.
 traces.db*
+
+# Local git worktrees created by tooling
+.claude/worktrees/

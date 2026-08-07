@@ -17,7 +17,7 @@ import {
  */
 function App() {
   const [session, setSession] = useState<CoachSession | null>(() => loadSession())
-  const [view, setView] = useState<DashboardView>('member')
+  const [view, setView] = useState<DashboardView>('dashboard')
 
   if (!session) {
     return (
@@ -41,7 +41,7 @@ function App() {
           setSession(null)
         }}
       />
-      {view === 'member' ? <MemberView /> : <TracesView />}
+      {view === 'traces' ? <TracesView /> : <MemberView panel={view} />}
     </div>
   )
 }

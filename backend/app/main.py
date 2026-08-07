@@ -11,6 +11,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
 from app.copilot import router as copilot_router
+from app.graph import router as graph_router
 from app.members import router as members_router
 from app.observability import (
     RequestSpanMiddleware,
@@ -54,6 +55,7 @@ app.add_middleware(RequestSpanMiddleware)
 app.include_router(members_router)
 app.include_router(workouts_router)
 app.include_router(copilot_router)
+app.include_router(graph_router)
 app.include_router(traces_router)
 
 
