@@ -20,6 +20,11 @@ Filter order, each stage recorded in the result rather than silently applied:
 4. **Preference down-ranking** — dislikes resolved to concept IDs push the
    score down; they are preferences, never safety, and are labelled as such.
 
+The rule *shape* is declared in ``app.kg.rules`` and validated at both ends —
+``build_kg.py`` rejects a malformed curated file, and ``_fetch_rules``
+re-validates what it reads back out of the graph. The rule *semantics* are
+documented here, because the evaluator and its tests are what depend on them.
+
 Rule-evaluation semantics (documented once, here, because tests depend on it):
 
 - ``mechanics_all_of`` must be satisfied by a **single** movement pattern of
@@ -50,12 +55,21 @@ can show *which rule fired, through which anatomy, from which member fact*.
 
 from __future__ import annotations
 
-import json
-from typing import Any, Literal
+from enum import StrEnum
+from typing import Any
 
 from neo4j import AsyncDriver
 from pydantic import BaseModel, Field
 
+from app.kg.rules import (
+    AppliesWhen,
+    ExerciseMatch,
+    InjurySeverity,
+    InjuryStatus,
+    MechanicsAttr,
+    RuleDecision,
+    SafetyRule,
+)
 from app.observability import traced_operation
 
 # Preferences push an exercise down the ranking without touching safety.
@@ -63,7 +77,24 @@ PREFERENCE_SCORE_DELTA = -0.3
 MAX_ALTERNATIVES = 3
 
 # Tie-break order when two fired rules share a priority: more restrictive wins.
-_DECISION_RANK = {"exclude": 0, "downrank": 1, "promote": 2, "allow": 3}
+_DECISION_RANK = {
+    RuleDecision.EXCLUDE: 0,
+    RuleDecision.DOWNRANK: 1,
+    RuleDecision.PROMOTE: 2,
+    RuleDecision.ALLOW: 3,
+}
+
+
+class ExclusionKind(StrEnum):
+    """Which filter stage removed an exercise from the pool.
+
+    The distinction is user-facing: the generator reports safety exclusions
+    separately from the rest, because only the safety ones are clinical.
+    """
+
+    EXPLICIT = "explicit"
+    EQUIPMENT = "equipment"
+    SAFETY = "safety"
 
 CLOSURE_CYPHER = (
     "MATCH (c:Condition {id: $condition_id})-[:ANCHORED_AT]->(anchor) "
@@ -77,8 +108,8 @@ class InjuryConstraint(BaseModel):
     """One active injury, already resolved to a Condition concept."""
 
     condition_id: str
-    status: Literal["acute", "recovering", "resolved"] = "recovering"
-    severity: Literal["mild", "moderate", "severe"] = "mild"
+    status: InjuryStatus = InjuryStatus.RECOVERING
+    severity: InjurySeverity = InjurySeverity.MILD
 
 
 class PoolConstraints(BaseModel):
@@ -103,11 +134,11 @@ class RuleFiring(BaseModel):
 
     rule_id: str
     condition_id: str
-    decision: Literal["exclude", "downrank", "promote", "allow"]
+    decision: RuleDecision
     priority: int
     score_delta: float = 0.0
     rationale: str
-    escalated_from: str | None = None
+    escalated_from: RuleDecision | None = None
     anatomy_path: GraphPath | None = None
 
 
@@ -142,7 +173,7 @@ class ExcludedExercise(BaseModel):
 
     exercise_id: str
     name: str
-    kind: Literal["explicit", "equipment", "safety"]
+    kind: ExclusionKind
     reason: str
     missing_equipment: list[str] = Field(default_factory=list)
     fired_rules: list[RuleFiring] = Field(default_factory=list)
@@ -179,17 +210,51 @@ async def _fetch_catalog(driver: AsyncDriver) -> list[dict[str, Any]]:
 
 async def _fetch_rules(
     driver: AsyncDriver, condition_ids: list[str]
-) -> dict[str, list[dict[str, Any]]]:
+) -> dict[str, list[SafetyRule]]:
+    """Load the safety rules for these conditions, keyed by condition id.
+
+    The nested ``applies_when`` / ``exercise_match`` structures are stored as
+    JSON strings because Neo4j properties must be flat; they are re-inflated
+    and the whole rule re-validated here. A ``ValidationError`` at this point
+    means the graph holds a rule ``build_kg.py`` would have rejected, so it is
+    left to propagate rather than swallowed — a rule that cannot be parsed
+    must never be quietly skipped.
+
+    Args:
+        driver: Injected Neo4j async driver.
+        condition_ids: Conditions whose rules are needed.
+
+    Returns:
+        ``{condition_id: [SafetyRule, ...]}``, missing keys meaning no rules.
+
+    Raises:
+        ValidationError: A stored rule does not match the ``SafetyRule`` schema.
+    """
     records, _, _ = await driver.execute_query(
         "MATCH (r:SafetyRule)-[:CONTRAINDICATED_FOR]->(c:Condition) "
         "WHERE c.id IN $ids RETURN c.id AS condition_id, r{.*} AS rule",
         ids=condition_ids,
     )
-    rules: dict[str, list[dict[str, Any]]] = {}
+    rules: dict[str, list[SafetyRule]] = {}
     for record in records:
-        rule = dict(record["rule"])
-        rule["applies_when"] = json.loads(rule.pop("applies_when_json"))
-        rule["exercise_match"] = json.loads(rule.pop("exercise_match_json"))
+        stored = dict(record["rule"])
+        rule = SafetyRule(
+            id=stored["id"],
+            condition=record["condition_id"],
+            decision=stored["decision"],
+            priority=stored["priority"],
+            applies_when=AppliesWhen.model_validate_json(stored["applies_when_json"]),
+            exercise_match=ExerciseMatch.model_validate_json(
+                stored["exercise_match_json"]
+            ),
+            rationale=stored["rationale"],
+            # Neo4j stores an absent score_delta as null, not as a missing key.
+            score_delta=stored.get("score_delta") or 0.0,
+            escalate_to_exclude_when_acute=bool(
+                stored.get("escalate_to_exclude_when_acute")
+            ),
+            coach_overridable=bool(stored.get("coach_overridable")),
+        )
         rules.setdefault(record["condition_id"], []).append(rule)
     return rules
 
@@ -235,21 +300,23 @@ async def _fetch_closures(
     return closures
 
 
-def _effective(pattern: dict[str, Any], attr: str, exercise: dict[str, Any]) -> Any:
-    if attr == "external_load_typical":
+def _effective(
+    pattern: dict[str, Any], attr: MechanicsAttr, exercise: dict[str, Any]
+) -> Any:
+    if attr is MechanicsAttr.EXTERNAL_LOAD_TYPICAL:
         return bool(pattern.get(attr)) and bool(exercise.get("supports_weight"))
     return pattern.get(attr)
 
 
 def _mechanics_fire(
-    match: dict[str, Any],
+    match: ExerciseMatch,
     patterns: list[dict[str, Any]],
     exercise: dict[str, Any],
     exercise_curies: set[str],
 ) -> bool:
     """Positive clauses of ``exercise_match`` (veto and gate handled by caller)."""
     clauses: list[bool] = []
-    if all_of := match.get("mechanics_all_of"):
+    if all_of := match.mechanics_all_of:
         clauses.append(
             any(
                 all(
@@ -259,7 +326,7 @@ def _mechanics_fire(
                 for p in patterns
             )
         )
-    if any_of := match.get("mechanics_any_of"):
+    if any_of := match.mechanics_any_of:
         clauses.append(
             any(
                 _effective(p, attr, exercise) in allowed
@@ -267,32 +334,31 @@ def _mechanics_fire(
                 for attr, allowed in any_of.items()
             )
         )
-    if pattern_ids := match.get("pattern_id_any_of"):
-        clauses.append(any(p["id"] in pattern_ids for p in patterns))
-    if targets := match.get("targets_any_of"):
-        clauses.append(bool(exercise_curies & set(targets)))
+    if match.pattern_id_any_of:
+        clauses.append(any(p["id"] in match.pattern_id_any_of for p in patterns))
+    if match.targets_any_of:
+        clauses.append(bool(exercise_curies & set(match.targets_any_of)))
     # A rule with no positive clause (anatomy-gate only) applies to everything
     # its gate admits.
     return any(clauses) if clauses else True
 
 
 def _none_of_veto(
-    match: dict[str, Any], patterns: list[dict[str, Any]], exercise: dict[str, Any]
+    match: ExerciseMatch, patterns: list[dict[str, Any]], exercise: dict[str, Any]
 ) -> bool:
-    none_of = match.get("mechanics_none_of")
-    if not none_of:
+    if not match.mechanics_none_of:
         return False
     return any(
         _effective(p, attr, exercise) in banned
         for p in patterns
-        for attr, banned in none_of.items()
+        for attr, banned in match.mechanics_none_of.items()
     )
 
 
 def _evaluate_rules(
     row: dict[str, Any],
     injuries: list[InjuryConstraint],
-    rules_by_condition: dict[str, list[dict[str, Any]]],
+    rules_by_condition: dict[str, list[SafetyRule]],
     closures: dict[str, dict[str, GraphPath]],
 ) -> list[RuleFiring]:
     exercise = row["exercise"]
@@ -305,15 +371,14 @@ def _evaluate_rules(
     firings: list[RuleFiring] = []
     for injury in injuries:
         for rule in rules_by_condition.get(injury.condition_id, []):
-            applies = rule["applies_when"]
             if (
-                injury.status not in applies.get("status", [])
-                or injury.severity not in applies.get("severity", [])
+                injury.status not in rule.applies_when.status
+                or injury.severity not in rule.applies_when.severity
             ):
                 continue
-            match = rule["exercise_match"]
+            match = rule.exercise_match
             anatomy_path: GraphPath | None = None
-            if match.get("require_anatomy_overlap"):
+            if match.require_anatomy_overlap:
                 reachable = closures.get(injury.condition_id, {})
                 overlap = stressed_joint_ids & set(reachable)
                 if not overlap:
@@ -323,24 +388,24 @@ def _evaluate_rules(
                 continue
             if not _mechanics_fire(match, patterns, exercise, exercise_curies):
                 continue
-            decision = rule["decision"]
-            priority = rule["priority"]
-            escalated_from: str | None = None
+            decision = rule.decision
+            priority = rule.priority
+            escalated_from: RuleDecision | None = None
             if (
-                rule.get("escalate_to_exclude_when_acute")
-                and injury.status == "acute"
-                and decision != "exclude"
+                rule.escalate_to_exclude_when_acute
+                and injury.status is InjuryStatus.ACUTE
+                and decision is not RuleDecision.EXCLUDE
             ):
                 escalated_from = decision
-                decision, priority = "exclude", max(priority, 100)
+                decision, priority = RuleDecision.EXCLUDE, max(priority, 100)
             firings.append(
                 RuleFiring(
-                    rule_id=rule["id"],
+                    rule_id=rule.id,
                     condition_id=injury.condition_id,
                     decision=decision,
                     priority=priority,
-                    score_delta=rule.get("score_delta") or 0.0,
-                    rationale=rule["rationale"],
+                    score_delta=rule.score_delta,
+                    rationale=rule.rationale,
                     escalated_from=escalated_from,
                     anatomy_path=anatomy_path,
                 )
@@ -458,7 +523,7 @@ async def _safe_exercise_pool(
                 ExcludedExercise(
                     exercise_id=exercise["id"],
                     name=name,
-                    kind="explicit",
+                    kind=ExclusionKind.EXPLICIT,
                     reason=f"matches explicitly excluded concept(s): {', '.join(hits)}",
                 )
             )
@@ -474,7 +539,7 @@ async def _safe_exercise_pool(
                     ExcludedExercise(
                         exercise_id=exercise["id"],
                         name=name,
-                        kind="equipment",
+                        kind=ExclusionKind.EQUIPMENT,
                         reason=f"requires unavailable equipment: {', '.join(missing)}",
                         missing_equipment=missing,
                         path=GraphPath(
@@ -499,12 +564,12 @@ async def _safe_exercise_pool(
             row, constraints.injuries, rules_by_condition, closures
         )
         winner = _winner(firings)
-        if winner is not None and winner.decision == "exclude":
+        if winner is not None and winner.decision is RuleDecision.EXCLUDE:
             excluded.append(
                 ExcludedExercise(
                     exercise_id=exercise["id"],
                     name=name,
-                    kind="safety",
+                    kind=ExclusionKind.SAFETY,
                     reason=(
                         f"rule {winner.rule_id} ({winner.rationale.split('.')[0]})"
                     ),
@@ -514,15 +579,14 @@ async def _safe_exercise_pool(
             )
             continue
 
-        score = sum(
-            f.score_delta for f in firings if f.decision in ("downrank", "promote")
-        )
+        scoring = (RuleDecision.DOWNRANK, RuleDecision.PROMOTE)
+        score = sum(f.score_delta for f in firings if f.decision in scoring)
         exercise_notes = [
             f"{f.decision} by {f.rule_id} (Δ{f.score_delta:+.2f})"
             for f in firings
-            if f.decision in ("downrank", "promote")
+            if f.decision in scoring
         ]
-        if winner is not None and winner.decision == "allow":
+        if winner is not None and winner.decision is RuleDecision.ALLOW:
             exercise_notes.append(
                 f"explicitly allowed by {winner.rule_id}: {winner.rationale}"
             )
@@ -578,7 +642,8 @@ async def _safe_exercise_pool(
 
     included.sort(key=lambda e: (-e.score, e.name))
     for excluded_entry, row in zip(
-        (e for e in excluded if e.kind == "equipment"), equipment_excluded_rows
+        (e for e in excluded if e.kind is ExclusionKind.EQUIPMENT),
+        equipment_excluded_rows,
     ):
         excluded_entry.alternatives = _alternatives(row, included)
 

@@ -69,11 +69,13 @@ for _candidate in (_REPO_ROOT / "backend", _REPO_ROOT):
         sys.path.insert(0, str(_candidate))
         break
 
+from pydantic import ValidationError
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, SKOS
 
 from app.kg.churn import assess_churn_risk
 from app.kg.embeddings import EMBEDDING_DIM, embed_texts
+from app.kg.rules import SAFETY_RULES_ADAPTER, MechanicsAttr
 
 ONTOLOGY_DIR_NAME = "ontology"
 
@@ -108,20 +110,6 @@ SKOS_PREDICATES = {
     "skos:narrower": (SKOS.narrower, "narrower"),
     "skos:related": (SKOS.related, "related"),
 }
-
-MECHANICS_KEYS = (
-    "impact",
-    "kinetic_chain",
-    "external_load_typical",
-    "axial_spinal_load",
-    "knee_flexion_demand",
-    "spinal_flexion_demand",
-    "spinal_rotation_demand",
-    "overhead_shoulder_demand",
-    "end_range_rom",
-    "unilateral_lower_limb",
-    "is_therapeutic",
-)
 
 
 class CurationError(Exception):
@@ -294,25 +282,27 @@ def load_and_validate(data_dir: Path) -> Kg1Payload:
             {"child": edge["child"], "parent": edge["parent"], "basis": edge["basis"]}
         )
 
-    # --- integrity: rules reference real concepts ----------------------------
+    # --- integrity: rules parse, then reference real concepts -----------------
+    # The schema check (field names, enum values, mechanics attributes) is the
+    # SafetyRule model's job; a rule that does not parse must stop the build
+    # rather than load and silently never fire.
+    try:
+        safety_rules = SAFETY_RULES_ADAPTER.validate_python(rules_doc["rules"])
+    except ValidationError as exc:
+        raise CurationError(f"contraindications.json is malformed: {exc}") from exc
+
+    # Cross-file references the model cannot see.
     condition_ids = {c["id"] for c in conditions_doc["concepts"]}
     pattern_ids = {c["id"] for c in patterns_doc["concepts"]}
-    for rule in rules_doc["rules"]:
-        if rule["condition"] not in condition_ids:
-            raise CurationError(f"{rule['id']}: unknown condition {rule['condition']}")
-        for pattern_id in rule["exercise_match"].get("pattern_id_any_of", []):
+    for rule in safety_rules:
+        if rule.condition not in condition_ids:
+            raise CurationError(f"{rule.id}: unknown condition {rule.condition}")
+        for pattern_id in rule.exercise_match.pattern_id_any_of:
             if pattern_id not in pattern_ids:
-                raise CurationError(f"{rule['id']}: unknown pattern {pattern_id}")
-        for target in rule["exercise_match"].get("targets_any_of", []):
+                raise CurationError(f"{rule.id}: unknown pattern {pattern_id}")
+        for target in rule.exercise_match.targets_any_of:
             if target not in structures_raw:
-                raise CurationError(f"{rule['id']}: unknown anatomy target {target}")
-        for key in rule["exercise_match"]:
-            if key.startswith("mechanics_"):
-                for mech_key in rule["exercise_match"][key]:
-                    if mech_key not in MECHANICS_KEYS:
-                        raise CurationError(
-                            f"{rule['id']}: unknown mechanics attribute {mech_key!r}"
-                        )
+                raise CurationError(f"{rule.id}: unknown anatomy target {target}")
 
     # --- integrity: conditions anchor into the partonomy ---------------------
     for condition in conditions_doc["concepts"]:
@@ -425,8 +415,9 @@ def load_and_validate(data_dir: Path) -> Kg1Payload:
             props["category"] = concept["category"]
         if concept.get("subtype"):
             props["subtype"] = concept["subtype"]
-        for key in MECHANICS_KEYS:
-            props[key] = concept["mechanics"][key]
+        # str(key): the driver wants plain string property names, not StrEnum.
+        for key in MechanicsAttr:
+            props[str(key)] = concept["mechanics"][key]
         patterns.append({"id": concept["id"], "props": props})
 
     equipment = []
@@ -446,28 +437,33 @@ def load_and_validate(data_dir: Path) -> Kg1Payload:
         )
 
     rules = []
-    for rule in rules_doc["rules"]:
-        match = rule["exercise_match"]
+    for rule in safety_rules:
         rules.append(
             {
-                "id": rule["id"],
-                "condition": rule["condition"],
+                "id": rule.id,
+                "condition": rule.condition,
                 "props": {
-                    "id": rule["id"],
-                    "decision": rule["decision"],
-                    "priority": rule["priority"],
-                    "score_delta": rule.get("score_delta"),
-                    "coach_overridable": rule.get("coach_overridable", False),
-                    "escalate_to_exclude_when_acute": rule.get(
-                        "escalate_to_exclude_when_acute", False
+                    "id": rule.id,
+                    "decision": str(rule.decision),  # StrEnum -> str for the driver
+                    "priority": rule.priority,
+                    "score_delta": rule.score_delta,
+                    "coach_overridable": rule.coach_overridable,
+                    "escalate_to_exclude_when_acute": (
+                        rule.escalate_to_exclude_when_acute
                     ),
-                    "rationale": rule["rationale"],
-                    "require_anatomy_overlap": match["require_anatomy_overlap"],
+                    "rationale": rule.rationale,
+                    "require_anatomy_overlap": (
+                        rule.exercise_match.require_anatomy_overlap
+                    ),
                     # Nested match/applicability structures are evaluated in
                     # Python by safe_exercise_pool; Neo4j properties are flat,
-                    # so they travel as JSON strings.
-                    "applies_when_json": json.dumps(rule["applies_when"]),
-                    "exercise_match_json": json.dumps(match),
+                    # so they travel as JSON strings. The curation prose fields
+                    # are deliberately not stored — nothing reads them at run
+                    # time.
+                    "applies_when_json": rule.applies_when.model_dump_json(),
+                    "exercise_match_json": rule.exercise_match.model_dump_json(
+                        exclude_none=True
+                    ),
                 },
             }
         )

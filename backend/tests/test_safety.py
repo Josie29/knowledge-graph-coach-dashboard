@@ -15,6 +15,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.kg.rules import (
+    AppliesWhen,
+    ExerciseMatch,
+    InjurySeverity,
+    InjuryStatus,
+    RuleDecision,
+    SafetyRule,
+)
 from app.kg.safety import (
     InjuryConstraint,
     PoolConstraints,
@@ -30,7 +38,11 @@ JORDAN_EQUIPMENT = [
     "eq_flat_bench",
     "eq_yoga_mat",
 ]
-PFPS = InjuryConstraint(condition_id="cond_pfps", status="recovering", severity="mild")
+PFPS = InjuryConstraint(
+    condition_id="cond_pfps",
+    status=InjuryStatus.RECOVERING,
+    severity=InjurySeverity.MILD,
+)
 
 
 # --------------------------------------------------------------------------
@@ -58,25 +70,39 @@ def _row(
     }
 
 
+_ANY_SEVERITY = [InjurySeverity.MILD, InjurySeverity.MODERATE, InjurySeverity.SEVERE]
+
+
 def _rule(
-    decision: str = "exclude",
+    decision: RuleDecision = RuleDecision.EXCLUDE,
     priority: int = 100,
     match: dict[str, Any] | None = None,
-    **extra: Any,
-) -> dict[str, Any]:
-    return {
-        "id": f"rule_test_{decision}",
-        "decision": decision,
-        "priority": priority,
-        "rationale": "test rule",
-        "score_delta": extra.pop("score_delta", -0.35 if decision == "downrank" else 0.0),
-        "applies_when": extra.pop(
-            "applies_when",
-            {"status": ["acute", "recovering"], "severity": ["mild", "moderate", "severe"]},
+    *,
+    score_delta: float | None = None,
+    applies_when: AppliesWhen | None = None,
+    escalate_to_exclude_when_acute: bool = False,
+) -> SafetyRule:
+    """Build a synthetic rule, defaulting everything the test does not pin."""
+    if score_delta is None:
+        score_delta = -0.35 if decision is RuleDecision.DOWNRANK else 0.0
+    return SafetyRule(
+        id=f"rule_test_{decision}",
+        condition="cond_pfps",
+        decision=decision,
+        priority=priority,
+        rationale="test rule",
+        score_delta=score_delta,
+        applies_when=applies_when
+        or AppliesWhen(
+            status=[InjuryStatus.ACUTE, InjuryStatus.RECOVERING],
+            severity=_ANY_SEVERITY,
         ),
-        "exercise_match": {"require_anatomy_overlap": False, **(match or {})},
-        **extra,
-    }
+        # Merged as a dict rather than kwargs so a test may override the gate.
+        exercise_match=ExerciseMatch.model_validate(
+            {"require_anatomy_overlap": False, **(match or {})}
+        ),
+        escalate_to_exclude_when_acute=escalate_to_exclude_when_acute,
+    )
 
 
 CLOSURE = {"cond_pfps": {"jt_knee": None}}  # anchor reaches the knee
@@ -110,7 +136,7 @@ def test_none_of_vetoes_at_exercise_level() -> None:
     # past the safety layer — the guard must look at ALL patterns, not just
     # the one that satisfied all_of.
     rule = _rule(
-        decision="allow",
+        decision=RuleDecision.ALLOW,
         priority=200,
         match={
             "mechanics_all_of": {"is_therapeutic": [True],
@@ -162,40 +188,49 @@ def test_applies_when_filters_and_escalation() -> None:
     # and the acute escalation (downrank -> exclude) being lost — which would
     # let moderate knee loading through during an acute flare.
     rule = _rule(
-        decision="downrank",
+        decision=RuleDecision.DOWNRANK,
         priority=50,
-        applies_when={"status": ["acute", "recovering"], "severity": ["mild"]},
+        applies_when=AppliesWhen(
+            status=[InjuryStatus.ACUTE, InjuryStatus.RECOVERING],
+            severity=[InjurySeverity.MILD],
+        ),
         escalate_to_exclude_when_acute=True,
     )
     row = _row([{"id": "p1"}])
-    resolved = InjuryConstraint(condition_id="cond_pfps", status="resolved",
-                                severity="mild")
+    resolved = InjuryConstraint(
+        condition_id="cond_pfps",
+        status=InjuryStatus.RESOLVED,
+        severity=InjurySeverity.MILD,
+    )
     assert _fire(row, rule, injury=resolved) == []
 
-    acute = InjuryConstraint(condition_id="cond_pfps", status="acute",
-                             severity="mild")
+    acute = InjuryConstraint(
+        condition_id="cond_pfps",
+        status=InjuryStatus.ACUTE,
+        severity=InjurySeverity.MILD,
+    )
     firings = _fire(row, rule, injury=acute)
-    assert firings[0].decision == "exclude"
-    assert firings[0].escalated_from == "downrank"
+    assert firings[0].decision is RuleDecision.EXCLUDE
+    assert firings[0].escalated_from is RuleDecision.DOWNRANK
 
 
 def test_winner_priority_then_restrictiveness() -> None:
     # Guards: the allow-beats-exclude priority band inverting, or a tie
     # resolving permissively — either would weaken the safety decision.
     row = _row([{"id": "p1"}])
-    exclude = _rule(decision="exclude", priority=100)
-    allow = _rule(decision="allow", priority=200)
-    downrank = _rule(decision="downrank", priority=100, score_delta=-0.2)
+    exclude = _rule(decision=RuleDecision.EXCLUDE, priority=100)
+    allow = _rule(decision=RuleDecision.ALLOW, priority=200)
+    downrank = _rule(decision=RuleDecision.DOWNRANK, priority=100, score_delta=-0.2)
 
     firings = _evaluate_rules(
         row, [PFPS], {"cond_pfps": [exclude, allow]}, CLOSURE
     )
-    assert _winner(firings).decision == "allow"
+    assert _winner(firings).decision is RuleDecision.ALLOW
 
     tied = _evaluate_rules(
         row, [PFPS], {"cond_pfps": [exclude, downrank]}, CLOSURE
     )
-    assert _winner(tied).decision == "exclude"
+    assert _winner(tied).decision is RuleDecision.EXCLUDE
 
 
 # --------------------------------------------------------------------------

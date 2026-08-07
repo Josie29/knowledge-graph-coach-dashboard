@@ -38,6 +38,7 @@ from app.agents.model import build_model, build_model_settings
 from app.kg.resolver import ResolvedConcept, resolve_concepts
 from app.kg.safety import (
     ExcludedExercise,
+    ExclusionKind,
     InjuryConstraint,
     PoolConstraints,
     PoolExercise,
@@ -583,10 +584,10 @@ async def generate_workout(
         time_window_minutes=request.time_window_minutes,
         estimated_duration_minutes=round(plan_minutes(deps, draft), 1),
         filtered_out_for_safety=[
-            e for e in pool_result.excluded if e.kind == "safety"
+            e for e in pool_result.excluded if e.kind is ExclusionKind.SAFETY
         ],
         other_exclusions=[
-            e for e in pool_result.excluded if e.kind != "safety"
+            e for e in pool_result.excluded if e.kind is not ExclusionKind.SAFETY
         ],
         constraints_used=constraints,
         resolution_notes=notes,
